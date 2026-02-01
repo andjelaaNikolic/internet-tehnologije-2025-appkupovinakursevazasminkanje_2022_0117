@@ -40,11 +40,11 @@ export default function PregledKorisnikaPage() {
   const [query, setQuery] = useState("");
   const router = useRouter();
 
-  // fetch korisnici sa servera
+
   useEffect(() => {
     async function fetchKorisnici() {
       try {
-        const res = await fetch("/api/korisnici"); // napraviš api route koji vraća sve korisnike
+        const res = await fetch("/api/korisnici"); 
         const data: Korisnik[] = await res.json();
         setKorisnici(data);
       } catch (err) {
@@ -61,7 +61,7 @@ export default function PregledKorisnikaPage() {
       k.email.toLowerCase().includes(query.toLowerCase())
   );
 
-  // razdvajanje po ulozi
+  
   const edukatori = filtrirani.filter(k => k.uloga === "EDUKATOR");
   const admini = filtrirani.filter(k => k.uloga === "ADMIN");
   const klijenti = filtrirani.filter(k => k.uloga === "KLIJENT");
@@ -83,7 +83,7 @@ export default function PregledKorisnikaPage() {
             className="w-full p-4 rounded-3xl border-2 border-[#E3CAA5] focus:outline-none focus:ring-2 focus:ring-[#AD8B73] bg-white placeholder:text-[#AD8B73] text-[#4a3f35] font-medium"
           />
 
-          {/* Edukatori */}
+          
           <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-[#E3CAA5]">
             <h2 className="text-2xl font-bold text-[#4a3f35] mb-4">Edukatori</h2>
             {edukatori.length === 0 ? (
@@ -118,7 +118,7 @@ export default function PregledKorisnikaPage() {
             )}
           </div>
 
-          {/* Admini */}
+          
           <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-[#E3CAA5]">
             <h2 className="text-2xl font-bold text-[#4a3f35] mb-4">Administratori</h2>
             {admini.length === 0 ? (
@@ -153,7 +153,7 @@ export default function PregledKorisnikaPage() {
             )}
           </div>
 
-          {/* Klijenti */}
+          
           <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-[#E3CAA5]">
             <h2 className="text-2xl font-bold text-[#4a3f35] mb-4">Klijenti</h2>
             {klijenti.length === 0 ? (
