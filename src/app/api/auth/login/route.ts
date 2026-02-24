@@ -68,7 +68,7 @@ import { csrf } from '@/lib/csrf';
  *       500:
  *         description: Greška na serveru.
  */
-export const POST = csrf(async function POST(req: Request) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
 
@@ -117,4 +117,4 @@ export const POST = csrf(async function POST(req: Request) {
     console.error("Login Error:", error);
     return NextResponse.json({ message: "Greška na serveru" }, { status: 500 });
   }
-});
+};
