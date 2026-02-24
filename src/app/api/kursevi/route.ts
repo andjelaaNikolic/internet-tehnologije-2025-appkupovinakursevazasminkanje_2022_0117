@@ -1,108 +1,31 @@
+// src/app/api/kursevi/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/db/index";
 import { kurs, korisnik, videoLekcija } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { cookies, headers } from "next/headers";
-import { csrf } from "@/lib/csrf";
+import { verifyCsrfToken } from "@/lib/csrf";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
 
-/**
- * @swagger
- * /api/kursevi:
- *   get:
- *     summary: Vraća listu kurseva
- *     description: |
- *       Pravila pristupa:
- *       - GOST ili KLIJENT: Vraća sve dostupne kurseve.
- *       - EDUKATOR: Vraća samo kurseve koje je kreirao.
- *       - ADMIN: Pristup zabranjen.
- *     tags: [Kursevi]
- */
-export async function GET() {
+export const POST = async function POST(req: Request) {
   try {
-    let userRole: string | null = null;
-    let userId: string | null = null;
-    let token: string | undefined;
-
+    // 🔑 CSRF provera
     const headersList = await headers();
+    const csrfToken = headersList.get("x-csrf-token");
+    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
+      return NextResponse.json({ success: false, error: "Nevažeći CSRF token." }, { status: 403 });
+    }
+
+    // 🔑 JWT autentifikacija
+    let token: string | undefined;
     const authHeader = headersList.get("authorization");
     if (authHeader?.startsWith("Bearer ")) token = authHeader.substring(7);
-
+    if (!token) token = (await cookies()).get("auth")?.value;
     if (!token) {
-      const cookieStore = await cookies();
-      token = cookieStore.get("auth")?.value;
+      return NextResponse.json({ success: false, error: "Niste ulogovani." }, { status: 401 });
     }
-
-    if (token) {
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET) as { sub: string; uloga?: string };
-        userRole = decoded.uloga || null;
-        userId = decoded.sub;
-      } catch {
-        userRole = null;
-        userId = null;
-      }
-    }
-
-    if (userRole === "ADMIN") {
-      return NextResponse.json(
-        { success: false, error: "Administratori nemaju pristup ovoj ruti." },
-        { status: 403 }
-      );
-    }
-
-    let query = db
-      .select({
-        id: kurs.id,
-        naziv: kurs.naziv,
-        opis: kurs.opis,
-        cena: kurs.cena,
-        slika: kurs.slika,
-        kategorija: kurs.kategorija,
-        edukatorIme: korisnik.ime,
-        edukatorPrezime: korisnik.prezime,
-        edukatorId: kurs.edukator,
-      })
-      .from(kurs)
-      .leftJoin(korisnik, eq(kurs.edukator, korisnik.id));
-
-    const rezultati =
-      userRole === "EDUKATOR" && userId ? await query.where(eq(kurs.edukator, userId)) : await query;
-
-    return NextResponse.json({ success: true, kursevi: rezultati, userRole, userId });
-  } catch (error: any) {
-    console.error("API /kursevi GET error:", error);
-    return NextResponse.json({ success: false, error: "Greška pri učitavanju kurseva." }, { status: 500 });
-  }
-}
-
-/**
- * @swagger
- * /api/kursevi:
- *   post:
- *     summary: Kreiranje novog kursa
- *     description: Samo EDUKATOR može kreirati kurs sa lekcijama.
- *     tags: [Kursevi]
- *     security:
- *       - BearerAuth: []
- *       - CSRFToken: []
- */
-export const POST = csrf(async function POST(req: Request) {
-  try {
-    // 🔑 Provera JWT tokena
-    let token: string | undefined;
-    const headersList = await headers();
-    const authHeader = headersList.get("authorization");
-    if (authHeader?.startsWith("Bearer ")) token = authHeader.substring(7);
-
-    if (!token) {
-      const cookieStore = await cookies();
-      token = cookieStore.get("auth")?.value;
-    }
-
-    if (!token) return NextResponse.json({ success: false, error: "Niste ulogovani." }, { status: 401 });
 
     let edukatorId: string;
     let uloga: string;
@@ -121,14 +44,14 @@ export const POST = csrf(async function POST(req: Request) {
       );
     }
 
+    // 🔑 Podaci iz zahteva
     const { naziv, opis, cena, kategorija, slika, lekcije } = await req.json();
-
     if (!naziv || !opis || !cena || !kategorija || !slika || !lekcije || lekcije.length === 0) {
       return NextResponse.json({ success: false, error: "Sva polja su obavezna." }, { status: 400 });
     }
 
+    // 🔑 Kreiranje kursa i lekcija u transakciji
     await db.transaction(async (tx) => {
-      // Kreiranje kursa
       const [noviKurs] = await tx.insert(kurs).values({
         naziv,
         opis,
@@ -138,7 +61,6 @@ export const POST = csrf(async function POST(req: Request) {
         edukator: edukatorId,
       }).returning();
 
-      // Kreiranje video lekcija
       const lekcijeZaBazu = lekcije.map((l: any, i: number) => ({
         naziv: l.naziv,
         opis: l.opis,
@@ -154,6 +76,9 @@ export const POST = csrf(async function POST(req: Request) {
     return NextResponse.json({ success: true, message: "Kurs je uspešno kreiran." });
   } catch (error: any) {
     console.error("API /kursevi POST error:", error);
-    return NextResponse.json({ success: false, error: "Greška pri čuvanju podataka." }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Greška pri čuvanju podataka." },
+      { status: 500 }
+    );
   }
-});
+};

@@ -29,7 +29,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  */
 export const GET = async function GET() {
   try {
-    // ✅ CSRF provera
+    // 🔐 CSRF provera
     const csrfToken = (await headers()).get("x-csrf-token");
     if (!csrfToken || !verifyCsrfToken(csrfToken)) {
       return NextResponse.json(
@@ -39,16 +39,12 @@ export const GET = async function GET() {
     }
 
     // 🔑 Preuzimanje JWT tokena iz header-a ili kolačića
-    let token: string | undefined;
     const headersList = await headers();
-    const authHeader = headersList.get("authorization");
-    if (authHeader?.startsWith("Bearer ")) token = authHeader.substring(7);
+    let token = headersList.get("authorization")?.startsWith("Bearer ")
+      ? headersList.get("authorization")!.substring(7)
+      : undefined;
 
-    if (!token) {
-      const cookieStore = await cookies();
-      token = cookieStore.get("auth")?.value;
-    }
-
+    if (!token) token = (await cookies()).get("auth")?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: "Niste ulogovani." },
@@ -67,7 +63,7 @@ export const GET = async function GET() {
         );
       }
       korisnikId = decoded.sub;
-    } catch (err) {
+    } catch {
       return NextResponse.json(
         { success: false, error: "Sesija nevažeća ili je istekla." },
         { status: 401 }
@@ -90,13 +86,10 @@ export const GET = async function GET() {
       .innerJoin(korisnik, eq(kurs.edukator, korisnik.id))
       .where(eq(kupljeniKursevi.korisnikId, korisnikId));
 
-    return NextResponse.json({
-      success: true,
-      data: mojiKursevi,
-    });
+    return NextResponse.json({ success: true, data: mojiKursevi });
 
   } catch (error: any) {
-    console.error("Greška API /klijent/kupljeni-kursevi:", error);
+    console.error("API /klijent/kupljeni-kursevi error:", error);
     return NextResponse.json(
       { success: false, error: "Greška na serveru prilikom dobavljanja podataka." },
       { status: 500 }

@@ -1,4 +1,3 @@
-
 import crypto from "crypto";
 
 const CSRF_SECRET = process.env.CSRF_SECRET!;
@@ -11,5 +10,6 @@ export function generateCsrfToken() {
 }
 
 export function verifyCsrfToken(token: string) {
+  // prima SAMO token
   return token.length === 64;
 }

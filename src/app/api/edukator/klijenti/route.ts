@@ -29,7 +29,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  */
 export const GET = async function GET() {
   try {
-    // 🔑 CSRF token (opciono za GET, ali ako želiš, možeš dodati)
+    // 🔐 CSRF provera (opciono za GET)
     const csrfToken = (await headers()).get("x-csrf-token");
     if (!csrfToken || !verifyCsrfToken(csrfToken)) {
       return NextResponse.json(
@@ -38,18 +38,13 @@ export const GET = async function GET() {
       );
     }
 
-    let token: string | undefined;
+    // 🔑 Preuzimanje JWT tokena iz header-a ili kolačića
     const headersList = await headers();
-    const authHeader = headersList.get("authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      token = authHeader.substring(7);
-    }
+    let token = headersList.get("authorization")?.startsWith("Bearer ")
+      ? headersList.get("authorization")!.substring(7)
+      : undefined;
 
-    if (!token) {
-      const cookieStore = await cookies();
-      token = cookieStore.get("auth")?.value;
-    }
-
+    if (!token) token = (await cookies()).get("auth")?.value;
     if (!token) {
       return NextResponse.json(
         { success: false, error: "Niste ulogovani." },
@@ -57,25 +52,25 @@ export const GET = async function GET() {
       );
     }
 
+    // 🔒 Dekodiranje tokena i provera uloge
     let edukatorId: string;
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { sub: string; uloga: string };
-
       if (decoded.uloga !== "EDUKATOR" && decoded.uloga !== "ADMIN") {
         return NextResponse.json(
           { success: false, error: "Nemate pravo pristupa." },
           { status: 403 }
         );
       }
-
       edukatorId = decoded.sub;
-    } catch (err) {
+    } catch {
       return NextResponse.json(
         { success: false, error: "Sesija nevažeća ili je istekla." },
         { status: 401 }
       );
     }
 
+    // 📚 Dohvatanje liste klijenata koji su kupili kurseve edukatora
     const klijenti = await db
       .select({
         korisnikId: kupljeniKursevi.korisnikId,
@@ -90,10 +85,7 @@ export const GET = async function GET() {
       .where(eq(kurs.edukator, edukatorId))
       .groupBy(kupljeniKursevi.korisnikId, korisnik.ime, korisnik.prezime, korisnik.email);
 
-    return NextResponse.json({
-      success: true,
-      data: klijenti
-    });
+    return NextResponse.json({ success: true, data: klijenti });
 
   } catch (error: any) {
     console.error('API /edukator/klijenti error:', error);

@@ -1,4 +1,3 @@
-import { defineConfig } from "drizzle-kit";
 import * as dotenv from "dotenv";
 
 dotenv.config({ path: ".env" });
@@ -9,11 +8,12 @@ if (!process.env.DATABASE_URL) {
   console.log("✅ DATABASE_URL je uspešno učitan.");
 }
 
-export default defineConfig({
+// ✅ Novo: direktni export konfiguracije, bez defineConfig
+export default {
   schema: "./src/db/schema.ts",
   out: "./src/db/migrations",
   dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-});
+};

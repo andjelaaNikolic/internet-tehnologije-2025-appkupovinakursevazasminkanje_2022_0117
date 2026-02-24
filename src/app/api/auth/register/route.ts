@@ -5,87 +5,40 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { verifyCsrfToken } from "@/lib/csrf";
 
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Registracija novog korisnika
- *     description: Kreira novi korisnički nalog u bazi podataka. Lozinka se hešuje pomoću bcrypt-a, a podrazumevana uloga (role) je automatski postavljena na "KLIJENT" radi bezbednosti.
- *     tags: [Auth]
- *     parameters:
- *       - in: header
- *         name: x-csrf-token
- *         schema:
- *           type: string
- *         required: true
- *         description: CSRF zaštita - unesite vrednost CSRF tokena
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - ime
- *               - prezime
- *               - email
- *               - lozinka
- *             properties:
- *               ime:
- *                 type: string
- *                 example: Marija
- *               prezime:
- *                 type: string
- *                 example: Marković
- *               email:
- *                 type: string
- *                 format: email
- *                 example: marija@example.com
- *               lozinka:
- *                 type: string
- *                 format: password
- *                 example: MojaSigurnaSifra123
- *     responses:
- *       201:
- *         description: Uspešna registracija. Korisnik je kreiran.
- *       400:
- *         description: Loš zahtev. Podaci su nepotpuni, lozinka je prekratka ili email već postoji.
- *       500:
- *         description: Greška na serveru.
- */
-
 export const POST = async function POST(req: Request) {
   try {
-    // 🔑 Provera CSRF tokena
+    // 🔐 CSRF provera
     const csrfToken = req.headers.get("x-csrf-token");
     if (!csrfToken || !verifyCsrfToken(csrfToken)) {
       return NextResponse.json(
-        { success: false, message: "Nevažeći CSRF token." },
+        { success: false, error: "Nevažeći CSRF token." },
         { status: 403 }
       );
     }
 
     const body = await req.json();
-
     const ime = body.ime?.trim();
     const prezime = body.prezime?.trim();
     const email = body.email?.toLowerCase().trim();
     const lozinka = body.lozinka;
 
+    // 🔹 Provera svih polja
     if (!ime || !prezime || !email || !lozinka) {
       return NextResponse.json(
-        { success: false, message: "Sva polja su obavezna." },
+        { success: false, error: "Sva polja su obavezna." },
         { status: 400 }
       );
     }
 
+    // 🔹 Minimalna dužina lozinke
     if (lozinka.length < 6) {
       return NextResponse.json(
-        { success: false, message: "Lozinka mora imati najmanje 6 karaktera." },
+        { success: false, error: "Lozinka mora imati najmanje 6 karaktera." },
         { status: 400 }
       );
     }
 
+    // 🔹 Provera da li korisnik već postoji
     const postojeciKorisnik = await db
       .select()
       .from(korisnik)
@@ -94,11 +47,12 @@ export const POST = async function POST(req: Request) {
 
     if (postojeciKorisnik.length > 0) {
       return NextResponse.json(
-        { success: false, message: "Korisnik sa ovim emailom već postoji." },
+        { success: false, error: "Korisnik sa ovim emailom već postoji." },
         { status: 400 }
       );
     }
 
+    // 🔹 Hešovanje lozinke
     const hashedPassword = await bcrypt.hash(lozinka, 10);
 
     await db.insert(korisnik).values({
@@ -106,7 +60,7 @@ export const POST = async function POST(req: Request) {
       prezime,
       email,
       lozinka: hashedPassword,
-      uloga: "KLIJENT",
+      uloga: "KLIJENT", // default role
     });
 
     return NextResponse.json(
@@ -117,7 +71,7 @@ export const POST = async function POST(req: Request) {
   } catch (error: any) {
     console.error("Greška pri registraciji:", error);
     return NextResponse.json(
-      { success: false, message: "Došlo je do greške na serveru." },
+      { success: false, error: "Došlo je do greške na serveru." },
       { status: 500 }
     );
   }
