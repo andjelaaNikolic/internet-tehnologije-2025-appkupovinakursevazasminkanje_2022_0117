@@ -1,11 +1,15 @@
-import Tokens from 'csrf';
 
-const tokens = new Tokens();
+import crypto from "crypto";
 
-export function generateCsrfToken(secret: string) {
-  return tokens.create(secret);
+const CSRF_SECRET = process.env.CSRF_SECRET!;
+if (!CSRF_SECRET) throw new Error("CSRF_SECRET nije definisan!");
+
+export function generateCsrfToken() {
+  return crypto.createHmac("sha256", CSRF_SECRET)
+               .update(Date.now().toString())
+               .digest("hex");
 }
 
-export function verifyCsrfToken(secret: string, token: string) {
-  return tokens.verify(secret, token);
+export function verifyCsrfToken(token: string) {
+  return token.length === 64;
 }

@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { korisnik } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
-import { csrf } from '@/lib/csrf';
+import { verifyCsrfToken } from "@/lib/csrf";
 
 /**
  * @swagger
@@ -48,23 +48,23 @@ import { csrf } from '@/lib/csrf';
  *     responses:
  *       201:
  *         description: Uspešna registracija. Korisnik je kreiran.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                   example: Uspešna registracija!
  *       400:
  *         description: Loš zahtev. Podaci su nepotpuni, lozinka je prekratka ili email već postoji.
  *       500:
  *         description: Greška na serveru.
  */
-export const POST = csrf(async function POST(req: Request) {
+
+export const POST = async function POST(req: Request) {
   try {
+    // 🔑 Provera CSRF tokena
+    const csrfToken = req.headers.get("x-csrf-token");
+    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
+      return NextResponse.json(
+        { success: false, message: "Nevažeći CSRF token." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
 
     const ime = body.ime?.trim();
@@ -121,4 +121,4 @@ export const POST = csrf(async function POST(req: Request) {
       { status: 500 }
     );
   }
-});
+};

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { csrf } from '@/lib/csrf';
+import { generateCsrfToken, verifyCsrfToken } from '@/lib/csrf';
 import { dodajKorisnikaAction } from "@/app/actions/korisnik";
 import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
@@ -73,12 +73,17 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  *       500:
  *         description: Greška na serveru prilikom dodavanja korisnika.
  */
-export const POST = csrf(async function POST(req: Request) {
+export const POST = async function POST(req: Request) {
   try {
-    let token: string | undefined;
+    // Provera CSRF tokena
+    const csrfToken = req.headers.get("x-csrf-token");
+    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
+      return NextResponse.json({ success: false, error: "Nevažeći CSRF token." }, { status: 403 });
+    }
 
-    const headersList = await headers();
-    const authHeader = headersList.get("authorization");
+    // Provera JWT
+    let token: string | undefined;
+    const authHeader = req.headers.get("authorization");
     if (authHeader?.startsWith("Bearer ")) {
       token = authHeader.substring(7);
     }
@@ -105,12 +110,14 @@ export const POST = csrf(async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Sesija nevažeća ili je istekla." }, { status: 401 });
     }
 
+    // Dobavljanje tela zahteva
     const body = await req.json();
 
     if (!body.email || !body.lozinka || !body.uloga) {
       return NextResponse.json({ success: false, error: "Nedostaju obavezni podaci (email, lozinka ili uloga)." }, { status: 400 });
     }
 
+    // Dodavanje korisnika
     const result = await dodajKorisnikaAction(body);
 
     if (result.success) {
@@ -123,4 +130,4 @@ export const POST = csrf(async function POST(req: Request) {
     console.error("Greška u API ruti /api/admin/korisnik:", err);
     return NextResponse.json({ success: false, error: "Greška na serveru prilikom dodavanja korisnika." }, { status: 500 });
   }
-});
+};

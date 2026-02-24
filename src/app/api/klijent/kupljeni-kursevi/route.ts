@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { csrf } from '@/lib/csrf';
 import { db } from "@/db/index";
 import { kupljeniKursevi, kurs, korisnik } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
+import { verifyCsrfToken } from "@/lib/csrf";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
 
@@ -20,32 +20,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  *     responses:
  *       200:
  *         description: Uspešno dobavljena lista kupljenih kurseva.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                       naziv:
- *                         type: string
- *                       opis:
- *                         type: string
- *                       slika:
- *                         type: string
- *                       kategorija:
- *                         type: string
- *                       edukatorIme:
- *                         type: string
- *                       edukatorPrezime:
- *                         type: string
  *       401:
  *         description: Niste ulogovani ili je sesija nevažeća.
  *       403:
@@ -53,15 +27,22 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  *       500:
  *         description: Greška na serveru prilikom dobavljanja podataka.
  */
-export const GET = csrf(async function GET(req: Request) {
+export const GET = async function GET() {
   try {
-    let token: string | undefined;
+    // ✅ CSRF provera
+    const csrfToken = (await headers()).get("x-csrf-token");
+    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
+      return NextResponse.json(
+        { success: false, error: "Nevažeći CSRF token." },
+        { status: 403 }
+      );
+    }
 
+    // 🔑 Preuzimanje JWT tokena iz header-a ili kolačića
+    let token: string | undefined;
     const headersList = await headers();
     const authHeader = headersList.get("authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      token = authHeader.substring(7);
-    }
+    if (authHeader?.startsWith("Bearer ")) token = authHeader.substring(7);
 
     if (!token) {
       const cookieStore = await cookies();
@@ -69,20 +50,31 @@ export const GET = csrf(async function GET(req: Request) {
     }
 
     if (!token) {
-      return NextResponse.json({ success: false, error: "Niste ulogovani." }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Niste ulogovani." },
+        { status: 401 }
+      );
     }
 
+    // 🔒 Dekodiranje tokena i provera uloge
     let korisnikId: string;
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { sub: string, uloga: string };
+      const decoded = jwt.verify(token, JWT_SECRET) as { sub: string; uloga: string };
+      if (decoded.uloga !== "KLIJENT" && decoded.uloga !== "ADMIN") {
+        return NextResponse.json(
+          { success: false, error: "Nemate pravo pristupa." },
+          { status: 403 }
+        );
+      }
       korisnikId = decoded.sub;
-
-
-
     } catch (err) {
-      return NextResponse.json({ success: false, error: "Sesija nevažeća ili je istekla." }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Sesija nevažeća ili je istekla." },
+        { status: 401 }
+      );
     }
 
+    // 📚 Dohvatanje kupljenih kurseva korisnika
     const mojiKursevi = await db
       .select({
         id: kurs.id,
@@ -91,7 +83,7 @@ export const GET = csrf(async function GET(req: Request) {
         slika: kurs.slika,
         kategorija: kurs.kategorija,
         edukatorIme: korisnik.ime,
-        edukatorPrezime: korisnik.prezime
+        edukatorPrezime: korisnik.prezime,
       })
       .from(kupljeniKursevi)
       .innerJoin(kurs, eq(kupljeniKursevi.kursId, kurs.id))
@@ -100,7 +92,7 @@ export const GET = csrf(async function GET(req: Request) {
 
     return NextResponse.json({
       success: true,
-      data: mojiKursevi
+      data: mojiKursevi,
     });
 
   } catch (error: any) {
@@ -110,4 +102,4 @@ export const GET = csrf(async function GET(req: Request) {
       { status: 500 }
     );
   }
-});
+};

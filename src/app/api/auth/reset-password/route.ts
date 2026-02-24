@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/db";
 import { korisnik } from "@/db/schema";
-import { eq, and, gt } from "drizzle-orm";
-import { csrf } from '@/lib/csrf';
+import { eq } from "drizzle-orm";
+import { verifyCsrfToken } from "@/lib/csrf";
 
 /**
  * @swagger
@@ -40,21 +40,20 @@ import { csrf } from '@/lib/csrf';
  *     responses:
  *       200:
  *         description: Lozinka uspešno ažurirana!
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Lozinka uspešno ažurirana!
  *       400:
  *         description: Link je nevažeći, token je istekao ili lozinka je prekratka.
  *       500:
  *         description: Greška na serveru.
  */
-export const POST = csrf(async function POST(req: Request) {
+
+export const POST = async function POST(req: Request) {
   try {
+    // 🔑 Provera CSRF tokena
+    const csrfToken = req.headers.get("x-csrf-token");
+    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
+      return NextResponse.json({ message: "Nevažeći CSRF token." }, { status: 403 });
+    }
+
     const body = await req.json();
     const { token, novaLozinka } = body;
 
@@ -78,7 +77,7 @@ export const POST = csrf(async function POST(req: Request) {
 
     const sada = new Date();
     if (!user.resetTokenExpiry || user.resetTokenExpiry < sada) {
-      console.log("TOKEN ISTEKAO: ", user.resetTokenExpiry, " je manje od ", sada);
+      console.log("TOKEN ISTEKAO: ", user.resetTokenExpiry, " < ", sada);
       return NextResponse.json({ message: "Link je istekao." }, { status: 400 });
     }
 
@@ -99,4 +98,4 @@ export const POST = csrf(async function POST(req: Request) {
     console.error("RESET PASSWORD ERROR:", error);
     return NextResponse.json({ message: "Greška na serveru" }, { status: 500 });
   }
-});
+};

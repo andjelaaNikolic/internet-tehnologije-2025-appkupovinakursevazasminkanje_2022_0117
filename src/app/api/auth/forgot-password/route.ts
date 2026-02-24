@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { korisnik } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
-import { csrf } from '@/lib/csrf';
+import { verifyCsrfToken } from "@/lib/csrf";
 
 /**
  * @swagger
@@ -36,21 +36,20 @@ import { csrf } from '@/lib/csrf';
  *     responses:
  *       200:
  *         description: Email uspešno poslat! (Ili generička poruka radi bezbednosti)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Ako nalog postoji, instrukcije su poslate na email.
  *       400:
  *         description: Email je obavezno polje.
  *       500:
  *         description: Greška na serveru (problem sa bazom ili Gmail servisom).
  */
-export const POST = csrf(async function POST(req: Request) {
+
+export const POST = async function POST(req: Request) {
   try {
+    // 🔑 Provera CSRF tokena
+    const csrfToken = req.headers.get("x-csrf-token");
+    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
+      return NextResponse.json({ message: "Nevažeći CSRF token." }, { status: 403 });
+    }
+
     const body = await req.json();
     const email = body.email?.toLowerCase().trim();
 
@@ -67,12 +66,7 @@ export const POST = csrf(async function POST(req: Request) {
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const expiry = new Date(Date.now() + 3600000);
-
-    console.log("--- DEBUG PASSWORD RESET ---");
-    console.log("Trenutno (Local):", new Date().toLocaleString());
-    console.log("Ističe (Local):", expiry.toLocaleString());
-    console.log("Šaljem u bazu (ISO/UTC):", expiry.toISOString());
+    const expiry = new Date(Date.now() + 3600000); // 1 sat
 
     await db.update(korisnik)
       .set({ resetToken, resetTokenExpiry: expiry })
@@ -81,7 +75,7 @@ export const POST = csrf(async function POST(req: Request) {
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: "insensitivo.makeup@gmail.com",
+        user: process.env.GMAIL_USER || "insensitivo.makeup@gmail.com",
         pass: process.env.GMAIL_APP_PASSWORD || "nelu spho gnzj fvom",
       },
     });
@@ -89,7 +83,7 @@ export const POST = csrf(async function POST(req: Request) {
     const resetLink = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
     await transporter.sendMail({
-      from: '"Insensitivo Makeup" <insensitivo.makeup@gmail.com>',
+      from: `"Insensitivo Makeup" <${process.env.GMAIL_USER || 'insensitivo.makeup@gmail.com'}>`,
       to: email,
       subject: "Promena lozinke",
       html: `
@@ -113,4 +107,4 @@ export const POST = csrf(async function POST(req: Request) {
     console.error("FORGOT PASSWORD ERROR:", error);
     return NextResponse.json({ message: "Greška na serveru" }, { status: 500 });
   }
-});
+};
