@@ -5,9 +5,11 @@ import { db } from "@/db";
 import { korisnik } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
+import { verifyCsrfToken } from "@/lib/csrf";
 
-import { csrf } from '@/lib/csrf';
+const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
+const CSRF_SECRET = process.env.CSRF_SECRET || "moja_tajna_za_csrf_123";
+
 /**
  * @swagger
  * /api/auth/login:
@@ -65,11 +67,19 @@ import { csrf } from '@/lib/csrf';
  *         description: Nisu poslati svi potrebni podaci.
  *       401:
  *         description: Pogrešan email ili lozinka.
+ *       403:
+ *         description: Nevalidan CSRF token.
  *       500:
  *         description: Greška na serveru.
  */
 export async function POST(req: Request) {
   try {
+    // Provera CSRF tokena iz headera
+    const csrfToken = req.headers.get("x-csrf-token") || "";
+    if (!verifyCsrfToken(CSRF_SECRET, csrfToken)) {
+      return NextResponse.json({ message: "Nevalidan CSRF token" }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const email = (body.email || body.korisnickoIme)?.toLowerCase().trim();
@@ -109,7 +119,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7
+      maxAge: 60 * 60 * 24 * 7 // 7 dana
     });
 
     return response;
@@ -117,4 +127,4 @@ export async function POST(req: Request) {
     console.error("Login Error:", error);
     return NextResponse.json({ message: "Greška na serveru" }, { status: 500 });
   }
-};
+}

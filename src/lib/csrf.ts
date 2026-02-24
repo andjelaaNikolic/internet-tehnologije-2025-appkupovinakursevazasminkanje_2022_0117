@@ -1,13 +1,11 @@
-import { NextResponse } from "next/server";
+import Tokens from 'csrf';
 
-export function csrf(handler: (req: Request) => Promise<NextResponse>) {
-  return async (req: Request) => {
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
-      const csrfToken = req.headers.get("x-csrf-token");
-      if (!csrfToken || csrfToken !== process.env.CSRF_SECRET) {
-        return NextResponse.json({ message: "CSRF zaštita: nevalidan token" }, { status: 403 });
-      }
-    }
-    return handler(req);
-  };
+const tokens = new Tokens();
+
+export function generateCsrfToken(secret: string) {
+  return tokens.create(secret);
+}
+
+export function verifyCsrfToken(secret: string, token: string) {
+  return tokens.verify(secret, token);
 }
