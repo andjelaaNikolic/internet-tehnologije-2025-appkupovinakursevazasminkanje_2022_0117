@@ -129,7 +129,7 @@ export async function getKursSaLekcijama(kursId: string) {
 
 export async function izmeniKompletanKurs(data: any): Promise<{ success: boolean; error?: string }> {
   try {
-    const kursId = data.id; 
+    const kursId = data.id;
     if (!kursId) return { success: false, error: "Nedostaje ID kursa." };
 
     return await db.transaction(async (tx) => {

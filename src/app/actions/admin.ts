@@ -47,25 +47,36 @@ export async function getMesecnaStatistikaKlijenata() {
 }
 
 
+
 export async function getStatistikaProdajeKurseva() {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get("auth")?.value;
-    if (!token) return { success: false, error: "Niste ulogovani." };
 
+    if (!token) {
+      return { success: false, error: "Niste ulogovani.", status: 401 };
+    }
+
+    let decoded;
     try {
-      jwt.verify(token, JWT_SECRET);
-    } catch {
-      return { success: false, error: "Sesija nevažeća." };
+      decoded = jwt.verify(token, JWT_SECRET) as any;
+    } catch (err) {
+      return { success: false, error: "Sesija nevažeća.", status: 401 };
+    }
+
+    if (decoded.uloga !== "ADMIN") {
+      return {
+        success: false,
+        error: "Zabranjen pristup. Samo administrator može videti ove podatke.",
+        status: 403
+      };
     }
 
     const sviKurseviPodaci = await db.select().from(kurs);
-
     const sveKupovine = await db.select().from(kupljeniKursevi);
 
     const statistika = sviKurseviPodaci.map((k) => {
       const brojProdaja = sveKupovine.filter((kupovina) => kupovina.kursId === k.id).length;
-
       const cenaPoKursu = Number(k.cena) || 0;
       const ostvareniPrihod = brojProdaja * cenaPoKursu;
 
@@ -80,7 +91,6 @@ export async function getStatistikaProdajeKurseva() {
     });
 
     const sortirano = statistika.sort((a, b) => b.prihod - a.prihod);
-
     const ukupniGlobalniPrihod = sortirano.reduce((sum, item) => sum + item.prihod, 0);
     const ukupnoProdatihKurseva = sortirano.reduce((sum, item) => sum + item.brojProdaja, 0);
 
@@ -90,8 +100,13 @@ export async function getStatistikaProdajeKurseva() {
       ukupnoPrihod: ukupniGlobalniPrihod,
       ukupnoProdato: ukupnoProdatihKurseva
     };
+
   } catch (error) {
     console.error("Greška pri generisanju izveštaja o prodaji:", error);
-    return { success: false, error: "Sistem ne može da prikaže informacije o prodaji kurseva." };
+    return {
+      success: false,
+      error: "Sistem ne može da prikaže informacije o prodaji kurseva.",
+      status: 500
+    };
   }
 }

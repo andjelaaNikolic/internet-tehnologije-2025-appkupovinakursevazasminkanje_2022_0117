@@ -3,7 +3,28 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db } from "@/db/index";
 import { kupljeniKursevi } from "@/db/schema";
-
+/**
+ * @swagger
+ * /api/webhook:
+ *   post:
+ *     summary: Stripe Webhook prijemnik
+ *     description: Ova ruta prima događaje (events) direktno sa Stripe servisa. Kada se plaćanje uspešno završi (checkout.session.completed), Webhook automatski upisuje kupljene kurseve u bazu podataka za odgovarajućeg korisnika.
+ *     tags: [Plaćanje]
+ *     parameters:
+ *       - in: header
+ *         name: Stripe-Signature
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Sigurnosni potpis koji šalje Stripe radi verifikacije autentičnosti zahteva.
+ *     responses:
+ *       200:
+ *         description: Uspešno primljen i obrađen događaj.
+ *       400:
+ *         description: Greška u verifikaciji potpisa ili nedostaju meta-podaci (korisnikId, kursIds).
+ *       500:
+ *         description: Greška na serveru ili problem pri upisu u bazu podataka.
+ */
 export async function POST(req: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -15,7 +36,7 @@ export async function POST(req: Request) {
 
   const stripe = new Stripe(secretKey);
   const body = await req.text();
-  const headersList = await headers(); 
+  const headersList = await headers();
   const signature = headersList.get("Stripe-Signature") as string;
 
   let event: Stripe.Event;

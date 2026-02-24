@@ -1,34 +1,82 @@
-
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { Client } from "pg";
+import { db } from "@/db";
+import { korisnik } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import crypto from "crypto";
+import { csrf } from '@/lib/csrf';
 
-
-export async function POST(req: Request) {
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-  });
-
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Slanje mejla za resetovanje lozinke
+ *     description: Prima korisnički email, generiše siguran reset token, čuva ga u bazi i šalje link sa tokenom putem Nodemailer-a.
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: header
+ *         name: x-csrf-token
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: CSRF zaštita - unesite vrednost CSRF tokena
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: korisnik@gmail.com
+ *     responses:
+ *       200:
+ *         description: Email uspešno poslat! (Ili generička poruka radi bezbednosti)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Ako nalog postoji, instrukcije su poslate na email.
+ *       400:
+ *         description: Email je obavezno polje.
+ *       500:
+ *         description: Greška na serveru (problem sa bazom ili Gmail servisom).
+ */
+export const POST = csrf(async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email } = body;
+    const email = body.email?.toLowerCase().trim();
 
     if (!email) {
       return NextResponse.json({ message: "Email je obavezan" }, { status: 400 });
     }
 
-    await client.connect();
+    const [user] = await db.select().from(korisnik).where(eq(korisnik.email, email)).limit(1);
 
-    const query = 'SELECT * FROM korisnik WHERE email = $1';
-    const result = await client.query(query, [email]);
-
-    if (result.rows.length === 0) {
-      await client.end();
-      return NextResponse.json(
-        { message: "Greška: Korisnik sa ovim emailom ne postoji u našoj bazi." },
-        { status: 404 }
-      );
+    if (!user) {
+      return NextResponse.json({
+        message: "Ako nalog postoji, instrukcije su poslate na email."
+      }, { status: 200 });
     }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const expiry = new Date(Date.now() + 3600000);
+
+    console.log("--- DEBUG PASSWORD RESET ---");
+    console.log("Trenutno (Local):", new Date().toLocaleString());
+    console.log("Ističe (Local):", expiry.toLocaleString());
+    console.log("Šaljem u bazu (ISO/UTC):", expiry.toISOString());
+
+    await db.update(korisnik)
+      .set({ resetToken, resetTokenExpiry: expiry })
+      .where(eq(korisnik.id, user.id));
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -38,7 +86,7 @@ export async function POST(req: Request) {
       },
     });
 
-    const resetLink = `http://localhost:3000/reset-password?email=${email}`;
+    const resetLink = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
     await transporter.sendMail({
       from: '"Insensitivo Makeup" <insensitivo.makeup@gmail.com>',
@@ -47,8 +95,8 @@ export async function POST(req: Request) {
       html: `
         <div style="font-family: Arial, sans-serif; text-align: center; background-color: #fdfaf8; padding: 40px; border-radius: 15px;">
           <h2 style="color: #AD8B73;">Insensitivo Makeup</h2>
-          <p>Primili smo zahtev za promenu lozinke za vaš nalog.</p>
-          <p>Kliknite na dugme ispod da biste postavili novu lozinku:</p>
+          <p>Primili smo zahtev za promenu lozinke.</p>
+          <p>Kliknite na dugme ispod da biste postavili novu lozinku (link važi 1 sat):</p>
           <br>
           <a href="${resetLink}" style="background-color: #AD8B73; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">
             POSTAVI NOVU LOZINKU
@@ -59,24 +107,10 @@ export async function POST(req: Request) {
       `,
     });
 
-    await client.end();
     return NextResponse.json({ message: "Email uspešno poslat!" }, { status: 200 });
 
   } catch (error: any) {
-    if (client) try { await client.end(); } catch (e) { }
-
-    console.error("DETALJNA GREŠKA:", error.message);
-
-    if (error.message.includes("535") || error.message.includes("Invalid login")) {
-      return NextResponse.json(
-        { message: "Gmail odbija pristup. Moraš uključiti 2-Step Verification i koristiti App Password (16 slova)." },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { message: "Greška na serveru: " + error.message },
-      { status: 500 }
-    );
+    console.error("FORGOT PASSWORD ERROR:", error);
+    return NextResponse.json({ message: "Greška na serveru" }, { status: 500 });
   }
-}
+});

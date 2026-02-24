@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { sacuvajNapredak } from "../actions/napredak";
 import { CheckCircle, Play, Circle, PlayCircle } from "lucide-react";
+import { escapeHtml } from "../utils/sanitize";
 
 export default function VideoPlayer({
   lekcije,
@@ -40,9 +41,9 @@ export default function VideoPlayer({
         </div>
 
         <div className="mt-6 p-6 bg-white rounded-3xl shadow-sm border border-[#E3CAA5]">
-          <h2 className="text-2xl font-bold text-[#4a3f35]">{aktivnaLekcija.naziv}</h2>
+          <h2 className="text-2xl font-bold text-[#4a3f35]">{escapeHtml(aktivnaLekcija.naziv)}</h2>
           <div className="h-1 w-20 bg-[#AD8B73] my-4 rounded-full"></div>
-          <p className="text-[#4a3f35] leading-relaxed opacity-90">{aktivnaLekcija.opis}</p>
+          <p className="text-[#4a3f35] leading-relaxed opacity-90">{escapeHtml(aktivnaLekcija.opis)}</p>
         </div>
       </div>
 

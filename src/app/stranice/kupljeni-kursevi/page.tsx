@@ -2,6 +2,7 @@
 
 import RoleGuard from "../../components/RoleGuard";
 import KupljeniKurseviContent from "../../components/KupljeniKurseviContent";
+import { escapeHtml } from "../../utils/sanitize";
 import { useEffect, useState, Suspense } from "react";
 import { fetchKupljeniKursevi } from "@/lib/kupljeniKurseviClient";
 import { Loader2 } from "lucide-react";

@@ -1,46 +1,102 @@
-
 import { NextResponse } from "next/server";
-import { Client } from "pg";
 import bcrypt from "bcryptjs";
+import { db } from "@/db";
+import { korisnik } from "@/db/schema";
+import { eq, and, gt } from "drizzle-orm";
+import { csrf } from '@/lib/csrf';
 
-export async function POST(req: Request) {
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-  });
-
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Resetovanje lozinke pomoću tokena
+ *     description: Prima tajni token iz mejla i novu lozinku, proverava da li je token validan i nije istekao, hešuje novu lozinku i ažurira je u bazi.
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: header
+ *         name: x-csrf-token
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: CSRF zaštita - unesite vrednost CSRF tokena
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - novaLozinka
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Tajni reset token dobijen u mejlu
+ *                 example: "a7b8c9d0e1f2..."
+ *               novaLozinka:
+ *                 type: string
+ *                 format: password
+ *                 example: NovaSifra2025!
+ *     responses:
+ *       200:
+ *         description: Lozinka uspešno ažurirana!
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Lozinka uspešno ažurirana!
+ *       400:
+ *         description: Link je nevažeći, token je istekao ili lozinka je prekratka.
+ *       500:
+ *         description: Greška na serveru.
+ */
+export const POST = csrf(async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { email, novaLozinka } = body;
+    const { token, novaLozinka } = body;
 
-    if (!email || !novaLozinka) {
-      return NextResponse.json({ message: "Podaci su nepotpuni" }, { status: 400 });
+    if (!token || !novaLozinka) {
+      return NextResponse.json({ message: "Token i nova lozinka su obavezni." }, { status: 400 });
     }
 
-    await client.connect();
+    if (novaLozinka.length < 6) {
+      return NextResponse.json({ message: "Lozinka mora imati bar 6 karaktera." }, { status: 400 });
+    }
 
-    const checkQuery = 'SELECT * FROM korisnik WHERE email = $1';
-    const checkRes = await client.query(checkQuery, [email]);
+    const [user] = await db
+      .select()
+      .from(korisnik)
+      .where(eq(korisnik.resetToken, token))
+      .limit(1);
 
-    if (checkRes.rows.length === 0) {
-      await client.end();
-      return NextResponse.json({ message: "Korisnik nije pronađen" }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ message: "Link je nevažeći." }, { status: 400 });
+    }
+
+    const sada = new Date();
+    if (!user.resetTokenExpiry || user.resetTokenExpiry < sada) {
+      console.log("TOKEN ISTEKAO: ", user.resetTokenExpiry, " je manje od ", sada);
+      return NextResponse.json({ message: "Link je istekao." }, { status: 400 });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(novaLozinka, salt);
 
-    const updateQuery = 'UPDATE korisnik SET lozinka = $1 WHERE email = $2';
-    await client.query(updateQuery, [hashedPassword, email]);
+    await db.update(korisnik)
+      .set({
+        lozinka: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null
+      })
+      .where(eq(korisnik.id, user.id));
 
-    await client.end();
     return NextResponse.json({ message: "Lozinka uspešno ažurirana!" }, { status: 200 });
 
   } catch (error: any) {
-    if (client) try { await client.end(); } catch (e) { }
-    console.error("RESET PASSWORD ERROR:", error.message);
-    return NextResponse.json(
-      { message: "Greška pri bazi: " + error.message },
-      { status: 500 }
-    );
+    console.error("RESET PASSWORD ERROR:", error);
+    return NextResponse.json({ message: "Greška na serveru" }, { status: 500 });
   }
-}
+});

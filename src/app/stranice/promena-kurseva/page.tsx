@@ -1,16 +1,17 @@
 "use client";
 
-import RoleGuard from "../../components/RoleGuard";
-import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { VideoUpload } from "../../components/VideoUpload";
-import { fetchKursevi, getKursSaLekcijama, updateKurs } from "@/lib/kurseviClient";
-import { validirajLekciju } from "@/app/utils/validacijalekcije";
-import Image from "next/image";
 import {
   X, CheckCircle, AlertCircle, Loader2, BookOpen, Euro, Tag,
   Clock, FileText, ChevronUp, ChevronDown
 } from "lucide-react";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import RoleGuard from "../../components/RoleGuard";
+import { VideoUpload } from "../../components/VideoUpload";
+import { escapeHtml } from "../../utils/sanitize";
+import { fetchKursevi, getKursSaLekcijama, updateKurs } from "../../../lib/kurseviClient";
+import { validirajLekciju } from "../../utils/validacijalekcije";
 
 function IzmeniKursSadrzaj() {
   const router = useRouter();
@@ -134,7 +135,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className={`mx-auto mb-4 p-3 rounded-full w-fit ${notification.type === "success" ? "bg-green-100 text-green-500" : "bg-red-100 text-red-500"}`}>
               {notification.type === "success" ? <CheckCircle size={40} /> : <AlertCircle size={40} />}
             </div>
-            <p className="text-lg font-bold mb-6">{notification.message}</p>
+            <p className="text-lg font-bold mb-6">{escapeHtml(notification?.message)}</p>
             <button onClick={() => setNotification(null)} className="auth-btn !mt-0">Zatvori</button>
           </div>
         </div>
@@ -194,7 +195,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             <div className="text-left">
               <label className="contact-label">Opis kursa</label>
-              <textarea className="auth-input min-h-[100px]" value={kursData.opis} onChange={(e) => setKursData((p) => ({ ...p, opis: e.target.value }))} />
+                  <textarea className="auth-input min-h-[100px]" value={kursData.opis} onChange={(e) => setKursData((p) => ({ ...p, opis: e.target.value }))} />
             </div>
 
             <hr className="border-[--color-accent] opacity-30" />

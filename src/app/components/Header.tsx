@@ -24,7 +24,7 @@ export default function Header() {
             <>
               <Link href="/login" className={linkStyle}>Prijava</Link>
               <Link href="/register" className={linkStyle}>Registracija</Link>
-              <Link href="stranice/o-meni" className={linkStyle}>O meni</Link>
+              <Link href="/stranice/o-meni" className={linkStyle}>O meni</Link>
               <Link href="/stranice/kontakt" className={linkStyle}>Kontakt</Link>
             </>
           )}

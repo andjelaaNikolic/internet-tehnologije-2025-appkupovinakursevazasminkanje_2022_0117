@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useCart } from "../context/KorpaContext";
+import { escapeHtml } from "../utils/sanitize";
 import {
   Search,
   ShoppingBasket,
@@ -146,7 +147,7 @@ export default function KurseviContent() {
               <div className={`mb-4 p-4 rounded-full ${notification.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
                 {notification.type === "success" ? <CheckCircle size={48} className="text-green-500" /> : <AlertTriangle size={48} className="text-red-500" />}
               </div>
-              <p className="text-xl font-bold text-center text-[--color-text] mb-6 uppercase tracking-tight">{notification.message}</p>
+              <p className="text-xl font-bold text-center text-[--color-text] mb-6 uppercase tracking-tight">{escapeHtml(notification.message)}</p>
               <button onClick={() => setNotification(null)} className="auth-btn !mt-0 !py-2 !px-8">Zatvori</button>
             </div>
           </div>
@@ -171,7 +172,7 @@ export default function KurseviContent() {
                   <div className="space-y-4">
                     <div>
                       <label className="auth-label">Naziv Kursa</label>
-                      <div className="auth-input !bg-white/70">{selectedKursToDelete.naziv}</div>
+                      <div className="auth-input !bg-white/70">{escapeHtml(selectedKursToDelete.naziv)}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -195,7 +196,7 @@ export default function KurseviContent() {
                 <div>
                   <label className="auth-label">Opis kursa</label>
                   <div className="auth-input !bg-white/70 min-h-[100px] leading-relaxed text-sm italic">
-                    {selectedKursToDelete.opis}
+                    {escapeHtml(selectedKursToDelete.opis)}
                   </div>
                 </div>
 
@@ -205,7 +206,7 @@ export default function KurseviContent() {
                     {selectedKursToDelete.lekcije?.map((l: any, idx: number) => (
                       <div key={idx} className="flex justify-between items-center bg-[#FFFBE9] p-4 rounded-2xl border border-[--color-accent] shadow-sm">
                         <div className="flex flex-col text-left">
-                          <span className="text-sm font-bold text-[--color-text]">{l.naziv}</span>
+                          <span className="text-sm font-bold text-[--color-text]">{escapeHtml(l.naziv)}</span>
                           <span className="text-[10px] text-gray-400 italic">Lekcija {idx + 1}</span>
                         </div>
                         <span className="text-[10px] font-bold text-[--color-secondary] flex items-center gap-1 uppercase tracking-widest">
@@ -255,9 +256,9 @@ export default function KurseviContent() {
                   </div>
 
                   <div className="p-6 flex flex-col flex-grow text-left">
-                    <h2 className="text-xl font-bold text-[--color-text] mb-2 uppercase tracking-tighter line-clamp-1">{k.naziv}</h2>
+                    <h2 className="text-xl font-bold text-[--color-text] mb-2 uppercase tracking-tighter line-clamp-1">{escapeHtml(k.naziv)}</h2>
                     <p className="text-gray-500 text-xs mb-4 line-clamp-2 italic cursor-pointer" onClick={() => setSelectedCourse(k)}>
-                      {k.opis}
+                      {escapeHtml(k.opis)}
                     </p>
 
                     <div className="flex items-center gap-2 mb-6">
@@ -306,7 +307,7 @@ export default function KurseviContent() {
               </button>
 
               <div className="mb-4 text-left">
-                <h2 className="text-2xl font-bold mb-2 text-[--color-primary] uppercase tracking-widest">{selectedCourse.naziv}</h2>
+                <h2 className="text-2xl font-bold mb-2 text-[--color-primary] uppercase tracking-widest">{escapeHtml(selectedCourse.naziv)}</h2>
                 <div className="flex flex-wrap gap-2">
                   <span className="bg-[--color-accent]/30 px-3 py-1 rounded-full text-[10px] font-bold text-[--color-primary] uppercase">{selectedCourse.kategorija}</span>
                   <span className="bg-[--color-secondary]/20 px-3 py-1 rounded-full text-[10px] font-bold text-[--color-primary] uppercase">Edukator: {selectedCourse.edukatorIme}</span>
@@ -319,7 +320,7 @@ export default function KurseviContent() {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-[--color-primary] mb-2 border-b border-[--color-accent] pb-1">Opis kursa:</h3>
-                  <p className="text-[--color-text] leading-relaxed text-sm italic">{selectedCourse.opis}</p>
+                  <p className="text-[--color-text] leading-relaxed text-sm italic">{escapeHtml(selectedCourse.opis)}</p>
                 </div>
 
                 {loadingCourseDetails ? (
@@ -331,7 +332,7 @@ export default function KurseviContent() {
                       {selectedCourse.lekcije.map((l: any, idx: number) => (
                         <div key={idx} className="flex justify-between items-center bg-[--color-bg] p-4 rounded-2xl border border-[--color-accent] shadow-sm">
                           <div className="flex flex-col">
-                            <span className="text-sm font-bold text-[--color-text]">{l.naziv}</span>
+                            <span className="text-sm font-bold text-[--color-text]">{escapeHtml(l.naziv)}</span>
                             <span className="text-[10px] text-gray-400 italic">Lekcija {idx + 1}</span>
                           </div>
                           <span className="text-[10px] font-bold text-[--color-secondary] flex items-center gap-1 uppercase tracking-widest">

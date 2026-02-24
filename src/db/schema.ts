@@ -14,7 +14,8 @@ export const korisnik = pgTable("korisnik", {
   lozinka: varchar("lozinka", { length: 255 }).notNull(),
   uloga: ulogaEnum("uloga").notNull(),
   datumRegistracije: timestamp("datum_registracije").defaultNow().notNull(),
-
+  resetToken: varchar("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry", { withTimezone: true, mode: "date" }),
 });
 
 export const kurs = pgTable("kurs", {

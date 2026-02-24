@@ -27,11 +27,17 @@ function ResetPasswordContent() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-  const email = searchParams.get("email");
+
+  const token = searchParams.get("token");
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
+
+    if (!token) {
+      setErr("Token nedostaje. Molimo vas koristite link iz email-a.");
+      return;
+    }
 
     if (novaLozinka.length < 6) {
       setErr("Lozinka mora imati barem 6 karaktera.");
@@ -46,10 +52,14 @@ function ResetPasswordContent() {
     setLoading(true);
 
     try {
+      const tokenRes = await fetch('/api/csrf-token');
+      const tokenData = await tokenRes.json();
+      const csrfToken = tokenData.csrfToken;
+
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, novaLozinka }),
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
+        body: JSON.stringify({ token, novaLozinka }),
       });
 
       const data = await res.json();
@@ -69,11 +79,11 @@ function ResetPasswordContent() {
     router.push("/login");
   };
 
-  if (!email) {
+  if (!token) {
     return (
       <div className="auth-wrap">
         <div className="auth-card text-center">
-          <p className="text-red-500 mb-4 font-bold">Nevažeći ili istekao link za resetovanje lozinke.</p>
+          <p className="text-red-500 mb-4 font-bold">Nevažeći ili nepostojeći link za resetovanje lozinke.</p>
           <button onClick={() => router.push("/login")} className="auth-btn">Nazad na prijavu</button>
         </div>
       </div>
@@ -90,24 +100,17 @@ function ResetPasswordContent() {
             </div>
             <h2 className="text-2xl font-bold mb-2" style={{ color: "#AD8B73" }}>Lozinka je promenjena!</h2>
             <p className="text-sm font-medium mb-6 text-gray-600">
-              Vaša lozinka je uspešno promenjena. Sada se možete prijaviti sa novim podacima.
+              Vaša lozinka je uspešno promenjena. Sada se možete prijaviti.
             </p>
-            <button onClick={handleGoToLogin} className="auth-btn !mt-0">
-              Idi na prijavu
-            </button>
+            <button onClick={handleGoToLogin} className="auth-btn !mt-0">Idi na prijavu</button>
           </div>
         </div>
       )}
 
       <div className="auth-card">
         <div className="mb-8 text-center">
-          <h2 className="playfair text-3xl font-black italic mb-2" style={{ color: "#AD8B73" }}>
-            Nova Lozinka
-          </h2>
-          <p className="text-sm font-medium italic" style={{ color: "#CEAB93" }}>
-            Postavite novu lozinku za nalog: <br />
-            <span className="text-[--color-primary] font-bold">{email}</span>
-          </p>
+          <h2 className="playfair text-3xl font-black italic mb-2" style={{ color: "#AD8B73" }}>Nova Lozinka</h2>
+          <p className="text-sm font-medium italic" style={{ color: "#CEAB93" }}>Postavite novu lozinku za vaš nalog</p>
         </div>
 
         {err && <div className="auth-error-alert">{err}</div>}
@@ -136,11 +139,7 @@ function ResetPasswordContent() {
             />
           </div>
           <button type="submit" disabled={loading} className="auth-btn">
-            {loading ? (
-              <Loader2 className="animate-spin mx-auto" size={24} />
-            ) : (
-              "Sačuvaj novu lozinku"
-            )}
+            {loading ? <Loader2 className="animate-spin mx-auto" size={24} /> : "Sačuvaj novu lozinku"}
           </button>
         </form>
       </div>

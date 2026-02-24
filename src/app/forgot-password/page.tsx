@@ -17,9 +17,12 @@ function ForgotPasswordSadrzaj() {
     setLoading(true);
 
     try {
+      const tokenRes = await fetch('/api/csrf-token');
+      const tokenData = await tokenRes.json();
+      const csrfToken = tokenData.csrfToken;
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
         body: JSON.stringify({ email }),
       });
 

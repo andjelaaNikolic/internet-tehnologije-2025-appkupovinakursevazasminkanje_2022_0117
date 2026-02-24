@@ -22,6 +22,13 @@
       "when": 1770160228414,
       "tag": "0002_green_rumiko_fujikawa",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1771876348104,
+      "tag": "0003_sharp_natasha_romanoff",
+      "breakpoints": true
     }
   ]
 }

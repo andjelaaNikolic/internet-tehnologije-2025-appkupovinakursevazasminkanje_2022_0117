@@ -1,5 +1,5 @@
 export async function fetchKorisnici() {
-  const res = await fetch('/api/korisnici', { cache: 'no-store' });
+  const res = await fetch('/api/admin/korisnici', { cache: 'no-store' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Greška pri komunikaciji sa serverom.' }));
     throw new Error(err.error || 'Greška pri učitavanju korisnika.');
@@ -8,7 +8,7 @@ export async function fetchKorisnici() {
 }
 
 export async function createKorisnik(payload: any) {
-  const res = await fetch('/api/korisnik', {
+  const res = await fetch('/api/admin/korisnik', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

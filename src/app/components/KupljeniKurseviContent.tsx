@@ -3,6 +3,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Search, X, User, Tag, PlayCircle } from "lucide-react";
+import { escapeHtml } from "../utils/sanitize";
 
 export default function KupljeniKurseviContent({
   pocetniKursevi = [],
@@ -65,18 +66,18 @@ export default function KupljeniKurseviContent({
                   </div>
 
                   <div className="p-6 flex flex-col flex-grow">
-                    <h2 className="text-2xl font-bold text-[--color-text] mb-2">{k.naziv}</h2>
+                    <h2 className="text-2xl font-bold text-[--color-text] mb-2">{escapeHtml(k.naziv)}</h2>
                     <p
                       className="text-gray-500 text-sm mb-4 line-clamp-2 cursor-pointer hover:text-[--color-primary]"
                       onClick={() => setSelectedCourse(k)}
                     >
-                      {k.opis} <span className="font-bold underline italic">vidi više</span>
+                      {escapeHtml(k.opis)} <span className="font-bold underline italic">vidi više</span>
                     </p>
 
                     <div className="flex items-center gap-2 mb-6">
                       <User size={16} className="text-[--color-primary]" />
                       <span className="text-sm font-medium text-[--color-primary]">
-                        {k.edukatorIme} {k.edukatorPrezime}
+                        {escapeHtml(k.edukatorIme)} {escapeHtml(k.edukatorPrezime)}
                       </span>
                     </div>
 
