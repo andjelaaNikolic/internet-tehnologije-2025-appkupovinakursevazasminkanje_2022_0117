@@ -7,7 +7,7 @@
   "dev": "next dev",
   "build": "next build",
   "start": "npm run db:migrate && next start",
-  "db:migrate": "npx drizzle-kit generate:pg && npx drizzle-kit push:pg", 
+  "db:migrate": "drizzle-kit generate && drizzle-kit push", 
   "db:seed": "tsx src/db/seed.ts",
   "test": "vitest"
 },
@@ -55,7 +55,7 @@
     "@vitejs/plugin-react": "^5.1.4",
     "babel-plugin-react-compiler": "1.0.0",
     "dotenv": "^17.2.3",
-    "drizzle-kit": "^0.18.1",
+    "drizzle-kit": "^0.31.9",
     "eslint": "^10.0.2",
     "eslint-config-next": "^0.2.4",
     "jsdom": "^28.1.0",
