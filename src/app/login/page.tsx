@@ -38,23 +38,22 @@ function LoginFormContent() {
     setLoading(true);
 
     try {
-      // Učitaj CSRF token i pošalji u headeru
-      const tokenRes = await fetch('/api/csrf-token');
-      const tokenData = await tokenRes.json();
-      const csrfToken = tokenData.csrfToken;
-
       const res = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Neuspešna prijava");
 
-      if (auth) auth.login(data.user, data.token);
+      if (!res.ok) {
+        throw new Error(data.error || "Neuspešna prijava");
+      }
+
+      if (auth) auth.login(data.user);
 
       const callbackUrl = searchParams.get("callbackUrl");
+
       if (callbackUrl) {
         router.push(callbackUrl);
       } else {
@@ -66,9 +65,10 @@ function LoginFormContent() {
           router.push("/");
         }
       }
+
       router.refresh();
     } catch (error: any) {
-      setErr(error.message);
+      setErr(error.message || "Došlo je do greške.");
     } finally {
       setLoading(false);
     }
@@ -78,8 +78,12 @@ function LoginFormContent() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="mb-8 text-center">
-          <h2 className="text-4xl font-black italic mb-2 text-[#AD8B73]">Dobrodošli</h2>
-          <p className="text-sm font-medium italic text-[#CEAB93]">Prijavite se u svet lepote</p>
+          <h2 className="text-4xl font-black italic mb-2 text-[#AD8B73]">
+            Dobrodošli
+          </h2>
+          <p className="text-sm font-medium italic text-[#CEAB93]">
+            Prijavite se u svet lepote
+          </p>
         </div>
 
         {err && <div className="auth-error-alert">{err}</div>}
@@ -91,7 +95,9 @@ function LoginFormContent() {
               type="email"
               className="auth-input"
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value })
+              }
               placeholder="ana@gmail.com"
               required
             />
@@ -104,7 +110,9 @@ function LoginFormContent() {
                 type={showPassword ? "text" : "password"}
                 className="auth-input pr-12"
                 value={form.lozinka}
-                onChange={(e) => setForm({ ...form, lozinka: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, lozinka: e.target.value })
+                }
                 placeholder="••••••••"
                 required
               />
@@ -131,7 +139,10 @@ function LoginFormContent() {
 
           <button type="submit" disabled={loading} className="auth-btn">
             {loading ? (
-              <Loader2 className="animate-spin mx-auto text-white" size={24} />
+              <Loader2
+                className="animate-spin mx-auto text-white"
+                size={24}
+              />
             ) : (
               "Prijavi se"
             )}

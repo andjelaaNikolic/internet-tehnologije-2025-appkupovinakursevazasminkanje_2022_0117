@@ -30,6 +30,7 @@ function RegisterFormContent() {
     email: "",
     lozinka: "",
   });
+
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -44,26 +45,23 @@ function RegisterFormContent() {
     }
 
     setLoading(true);
-    try {
-      const tokenRes = await fetch('/api/csrf-token');
-      const tokenData = await tokenRes.json();
-      const csrfToken = tokenData.csrfToken;
 
+    try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Neuspešna registracija");
+        throw new Error(data.error || "Neuspešna registracija");
       }
 
       router.push("/login");
     } catch (error: any) {
-      setErr(error.message);
+      setErr(error.message || "Došlo je do greške.");
     } finally {
       setLoading(false);
     }
@@ -73,10 +71,16 @@ function RegisterFormContent() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="mb-8 text-center">
-          <h2 className="text-4xl font-black italic mb-2" style={{ color: "#AD8B73" }}>
+          <h2
+            className="text-4xl font-black italic mb-2"
+            style={{ color: "#AD8B73" }}
+          >
             Pridruži se
           </h2>
-          <p className="text-sm font-medium italic" style={{ color: "#CEAB93" }}>
+          <p
+            className="text-sm font-medium italic"
+            style={{ color: "#CEAB93" }}
+          >
             Kreiraj nalog i postani deo naše zajednice
           </p>
         </div>
@@ -91,18 +95,23 @@ function RegisterFormContent() {
                 type="text"
                 className="auth-input"
                 value={form.ime}
-                onChange={(e) => setForm({ ...form, ime: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, ime: e.target.value })
+                }
                 placeholder="Ana"
                 required
               />
             </div>
+
             <div>
               <label className="auth-label">Prezime</label>
               <input
                 type="text"
                 className="auth-input"
                 value={form.prezime}
-                onChange={(e) => setForm({ ...form, prezime: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, prezime: e.target.value })
+                }
                 placeholder="Anić"
                 required
               />
@@ -115,7 +124,9 @@ function RegisterFormContent() {
               type="email"
               className="auth-input"
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, email: e.target.value })
+              }
               placeholder="ana@gmail.com"
               required
             />
@@ -128,7 +139,9 @@ function RegisterFormContent() {
                 type={showPassword ? "text" : "password"}
                 className="auth-input pr-12"
                 value={form.lozinka}
-                onChange={(e) => setForm({ ...form, lozinka: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, lozinka: e.target.value })
+                }
                 placeholder="••••••••"
                 required
               />
@@ -145,7 +158,10 @@ function RegisterFormContent() {
 
           <button type="submit" disabled={loading} className="auth-btn mt-4">
             {loading ? (
-              <Loader2 className="animate-spin mx-auto text-white" size={24} />
+              <Loader2
+                className="animate-spin mx-auto text-white"
+                size={24}
+              />
             ) : (
               "Registruj se"
             )}

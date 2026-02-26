@@ -17,22 +17,21 @@ function ForgotPasswordSadrzaj() {
     setLoading(true);
 
     try {
-      const tokenRes = await fetch('/api/csrf-token');
-      const tokenData = await tokenRes.json();
-      const csrfToken = tokenData.csrfToken;
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.message || "Greška pri slanju.");
+      if (!res.ok) {
+        throw new Error(data.error || "Greška pri slanju.");
+      }
 
       setMessage("Link za promenu lozinke je poslat na vaš email!");
     } catch (error: any) {
-      setErr(error.message);
+      setErr(error.message || "Došlo je do greške.");
     } finally {
       setLoading(false);
     }
@@ -42,15 +41,22 @@ function ForgotPasswordSadrzaj() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="mb-8 text-center">
-          <h2 className="playfair text-3xl font-black italic mb-2" style={{ color: "#AD8B73" }}>
+          <h2
+            className="playfair text-3xl font-black italic mb-2"
+            style={{ color: "#AD8B73" }}
+          >
             Zaboravljena lozinka
           </h2>
-          <p className="text-sm font-medium italic" style={{ color: "#CEAB93" }}>
+          <p
+            className="text-sm font-medium italic"
+            style={{ color: "#CEAB93" }}
+          >
             Unesite email da biste resetovali lozinku
           </p>
         </div>
 
         {err && <div className="auth-error-alert">{err}</div>}
+
         {message && (
           <div className="p-3 bg-green-100 text-green-700 text-sm rounded-lg mb-4 text-center">
             {message}
@@ -83,7 +89,11 @@ function ForgotPasswordSadrzaj() {
         </form>
 
         <div className="mt-6 text-center border-t border-[#f7edeb] pt-6">
-          <Link href="/login" className="text-sm font-bold hover:underline" style={{ color: "#AD8B73" }}>
+          <Link
+            href="/login"
+            className="text-sm font-bold hover:underline"
+            style={{ color: "#AD8B73" }}
+          >
             Vrati se na prijavu
           </Link>
         </div>
@@ -94,11 +104,16 @@ function ForgotPasswordSadrzaj() {
 
 export default function ForgotPasswordPage() {
   return (
-    <Suspense fallback={
-      <div className="auth-wrap flex items-center justify-center">
-        <Loader2 className="animate-spin text-[--color-primary]" size={40} />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="auth-wrap flex items-center justify-center min-h-screen">
+          <Loader2
+            className="animate-spin text-[--color-primary]"
+            size={40}
+          />
+        </div>
+      }
+    >
       <ForgotPasswordSadrzaj />
     </Suspense>
   );

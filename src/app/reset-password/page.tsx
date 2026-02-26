@@ -27,7 +27,6 @@ function ResetPasswordContent() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const token = searchParams.get("token");
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -52,23 +51,21 @@ function ResetPasswordContent() {
     setLoading(true);
 
     try {
-      const tokenRes = await fetch('/api/csrf-token');
-      const tokenData = await tokenRes.json();
-      const csrfToken = tokenData.csrfToken;
-
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, novaLozinka }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Greška pri ažuriranju.");
+
+      if (!res.ok) {
+        throw new Error(data.error || "Greška pri ažuriranju.");
+      }
 
       setShowSuccess(true);
-
     } catch (error: any) {
-      setErr(error.message);
+      setErr(error.message || "Došlo je do greške.");
     } finally {
       setLoading(false);
     }
@@ -83,8 +80,15 @@ function ResetPasswordContent() {
     return (
       <div className="auth-wrap">
         <div className="auth-card text-center">
-          <p className="text-red-500 mb-4 font-bold">Nevažeći ili nepostojeći link za resetovanje lozinke.</p>
-          <button onClick={() => router.push("/login")} className="auth-btn">Nazad na prijavu</button>
+          <p className="text-red-500 mb-4 font-bold">
+            Nevažeći ili nepostojeći link za resetovanje lozinke.
+          </p>
+          <button
+            onClick={() => router.push("/login")}
+            className="auth-btn"
+          >
+            Nazad na prijavu
+          </button>
         </div>
       </div>
     );
@@ -94,23 +98,40 @@ function ResetPasswordContent() {
     <div className="auth-wrap">
       {showSuccess && (
         <div className="fixed inset-0 flex items-center justify-center z-[9999] bg-black/40 backdrop-blur-sm p-4">
-          <div className="auth-card flex flex-col items-center text-center animate-in zoom-in duration-300 max-w-sm">
+          <div className="auth-card flex flex-col items-center text-center max-w-sm">
             <div className="bg-green-100 text-green-500 p-3 rounded-full mb-4">
               <CheckCircle size={48} />
             </div>
-            <h2 className="text-2xl font-bold mb-2" style={{ color: "#AD8B73" }}>Lozinka je promenjena!</h2>
+            <h2
+              className="text-2xl font-bold mb-2"
+              style={{ color: "#AD8B73" }}
+            >
+              Lozinka je promenjena!
+            </h2>
             <p className="text-sm font-medium mb-6 text-gray-600">
               Vaša lozinka je uspešno promenjena. Sada se možete prijaviti.
             </p>
-            <button onClick={handleGoToLogin} className="auth-btn !mt-0">Idi na prijavu</button>
+            <button onClick={handleGoToLogin} className="auth-btn !mt-0">
+              Idi na prijavu
+            </button>
           </div>
         </div>
       )}
 
       <div className="auth-card">
         <div className="mb-8 text-center">
-          <h2 className="playfair text-3xl font-black italic mb-2" style={{ color: "#AD8B73" }}>Nova Lozinka</h2>
-          <p className="text-sm font-medium italic" style={{ color: "#CEAB93" }}>Postavite novu lozinku za vaš nalog</p>
+          <h2
+            className="playfair text-3xl font-black italic mb-2"
+            style={{ color: "#AD8B73" }}
+          >
+            Nova Lozinka
+          </h2>
+          <p
+            className="text-sm font-medium italic"
+            style={{ color: "#CEAB93" }}
+          >
+            Postavite novu lozinku za vaš nalog
+          </p>
         </div>
 
         {err && <div className="auth-error-alert">{err}</div>}
@@ -127,6 +148,7 @@ function ResetPasswordContent() {
               required
             />
           </div>
+
           <div>
             <label className="auth-label">Potvrdite lozinku</label>
             <input
@@ -138,8 +160,13 @@ function ResetPasswordContent() {
               required
             />
           </div>
+
           <button type="submit" disabled={loading} className="auth-btn">
-            {loading ? <Loader2 className="animate-spin mx-auto" size={24} /> : "Sačuvaj novu lozinku"}
+            {loading ? (
+              <Loader2 className="animate-spin mx-auto" size={24} />
+            ) : (
+              "Sačuvaj novu lozinku"
+            )}
           </button>
         </form>
       </div>
