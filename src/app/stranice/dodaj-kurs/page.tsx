@@ -13,10 +13,24 @@ function DodajKursSadrzaj() {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
-  const [kursData, setKursData] = useState({ naziv: "", opis: "", cena: "", kategorija: "", slika: "" });
-  const [lekcije, setLekcije] = useState<any[]>([]);
-  const [trenutnaLekcija, setTrenutnaLekcija] = useState({ naziv: "", opis: "", video: "", trajanje: "" });
+  const [kursData, setKursData] = useState({
+    naziv: "",
+    opis: "",
+    cena: "",        // držimo string u inputu, konvertujemo na slanje
+    kategorija: "",
+    slika: "",
+  });
 
+  const [lekcije, setLekcije] = useState<any[]>([]);
+
+  const [trenutnaLekcija, setTrenutnaLekcija] = useState({
+    naziv: "",
+    opis: "",
+    video: "",
+    trajanje: "",   // držimo string u inputu, konvertujemo na slanje
+  });
+
+  // Dodavanje lekcije u listu
   const handleDodajLekcijuUListu = () => {
     if (!trenutnaLekcija.naziv.trim()) return setNotification({ message: "Unesite naziv lekcije!", type: "error" });
     if (!trenutnaLekcija.trajanje || Number(trenutnaLekcija.trajanje) <= 0) return setNotification({ message: "Unesite ispravno trajanje lekcije!", type: "error" });
@@ -28,26 +42,49 @@ function DodajKursSadrzaj() {
     setNotification(null);
   };
 
+  // Slanje kursa na backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!kursData.naziv || !kursData.opis || !kursData.cena || !kursData.kategorija) {
+    // Validacija osnovnih polja
+    if (!kursData.naziv.trim() || !kursData.opis.trim() || !kursData.cena || !kursData.kategorija.trim()) {
       return setNotification({ message: "Popunite sva polja za kurs!", type: "error" });
     }
     if (!kursData.slika) return setNotification({ message: "Otpremite naslovnu sliku!", type: "error" });
     if (lekcije.length === 0) return setNotification({ message: "Dodajte bar jednu lekciju u listu!", type: "error" });
 
+    // Konverzija tipova i priprema lekcija
+    const lekcijeZaSlanje = lekcije.map((l) => ({
+      naziv: l.naziv.trim(),
+      opis: l.opis.trim(),
+      trajanje: Number(l.trajanje).toString(), // backend očekuje string
+      video: l.video,
+    }));
+
     setLoading(true);
     try {
-      const rezultat = await createKurs({ ...kursData, lekcije });
+      // Debug payload
+      console.log({
+        ...kursData,
+        cena: Number(kursData.cena).toString(),
+        lekcije: lekcijeZaSlanje,
+      });
+
+      const rezultat = await createKurs({
+        ...kursData,
+        cena: Number(kursData.cena).toString(), // backend očekuje string
+        lekcije: lekcijeZaSlanje,
+      });
+
       if (rezultat.success) {
         setNotification({ message: "Kurs je uspešno objavljen!", type: "success" });
         setTimeout(() => router.push("/stranice/svi-kursevi"), 2000);
       } else {
         setNotification({ message: rezultat.error || "Došlo je do greške.", type: "error" });
       }
-    } catch (err) {
-      setNotification({ message: "Problem sa serverom. Pokušajte opet.", type: "error" });
+    } catch (err: any) {
+      console.error(err);
+      setNotification({ message: err.message || "Problem sa serverom. Pokušajte opet.", type: "error" });
     } finally {
       setLoading(false);
     }
@@ -102,6 +139,7 @@ function DodajKursSadrzaj() {
               )}
             </div>
           </div>
+
           <div className="text-left">
             <label className="contact-label">Glavni opis kursa</label>
             <textarea required className="auth-input min-h-[80px]" value={kursData.opis} onChange={(e) => setKursData(p => ({ ...p, opis: e.target.value }))} />
