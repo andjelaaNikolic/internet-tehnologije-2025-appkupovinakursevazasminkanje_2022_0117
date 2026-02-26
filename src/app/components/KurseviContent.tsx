@@ -1,4 +1,4 @@
-"use client";
+/*"use client";
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -363,6 +363,228 @@ export default function KurseviContent() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+  */
+
+"use client";
+
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { useCart } from "../context/KorpaContext";
+import { escapeHtml } from "../utils/sanitize";
+import {
+  Search,
+  ShoppingBasket,
+  X,
+  CheckCircle,
+  AlertTriangle,
+  User,
+  Edit,
+  Trash2,
+  Loader2,
+  ArrowLeft,
+  Clock,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { fetchKursevi, getKursSaLekcijama, obrisiKurs } from "@/lib/kurseviClient";
+
+export default function KurseviContent() {
+  const [kursevi, setKursevi] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<"KLIJENT" | "EDUKATOR" | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [selectedKursToDelete, setSelectedKursToDelete] = useState<any | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [loadingCourseDetails, setLoadingCourseDetails] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const { addToCart, cart } = useCart();
+  const router = useRouter();
+
+  // 📦 Dodavanje u korpu
+  const handleAddToCart = (k: any) => {
+    const vecUKorpi = cart.find((item) => item.id === k.id);
+    if (vecUKorpi) {
+      setNotification({ message: "Ovaj kurs se već nalazi u vašoj korpi.", type: "error" });
+    } else {
+      addToCart({ id: k.id, naziv: k.naziv, cena: k.cena, slika: k.slika });
+      setNotification({ message: "Kurs je uspešno dodat u korpu!", type: "success" });
+    }
+  };
+
+  // 🛒 Checkout funkcija
+  const handleCheckout = async () => {
+    if (cart.length === 0) {
+      setNotification({ message: "Korpa je prazna.", type: "error" });
+      return;
+    }
+
+    setCheckoutLoading(true);
+
+    try {
+      const res = await fetch("/api/klijent/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ items: cart }),
+      });
+
+      const data = await res.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setNotification({ message: data.error || "Greška prilikom plaćanja.", type: "error" });
+        setCheckoutLoading(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setNotification({ message: "Greška na serveru.", type: "error" });
+      setCheckoutLoading(false);
+    }
+  };
+
+  // 🔎 Fetch kurseva
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await fetchKursevi();
+        if (mounted) {
+          setKursevi(data.kursevi || []);
+          setUserRole(data.userRole || null);
+          setUserId(data.userId || null);
+        }
+      } catch (err: any) {
+        setNotification({ message: err.message || "Greška pri učitavanju kurseva.", type: "error" });
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
+  // ⚠️ Brisanje kursa
+  const handleReviewDelete = async (id: string) => {
+    setLoadingDetails(true);
+    try {
+      const detalji = await getKursSaLekcijama(id);
+      setSelectedKursToDelete(detalji);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setNotification({ message: "Greška pri učitavanju detalja.", type: "error" });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const izvrsiBrisanje = async () => {
+    if (!selectedKursToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await obrisiKurs(selectedKursToDelete.id);
+      if (res.success) {
+        setNotification({ message: "Kurs je uspešno obrisan!", type: "success" });
+        setKursevi(prev => prev.filter(k => k.id !== selectedKursToDelete.id));
+        setSelectedKursToDelete(null);
+      } else {
+        setNotification({ message: res.error || "Greška pri brisanju.", type: "error" });
+      }
+    } catch {
+      setNotification({ message: "Greška na serveru.", type: "error" });
+    } finally {
+      setIsDeleting(false);
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  if (loading) return <div className="auth-card text-center py-20">Učitavanje kurseva...</div>;
+
+  const filtriraniKursevi = kursevi.filter((k) =>
+    k.naziv.toLowerCase().includes(search.toLowerCase()) ||
+    k.kategorija.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="auth-wrap !block min-h-screen !p-0 overflow-y-auto">
+      {/* 🔔 Notifikacije */}
+      {notification && (
+        <div className="fixed inset-0 flex items-center justify-center z-[5000] p-4 bg-black/40 backdrop-blur-[2px]">
+          <div className="auth-card flex flex-col items-center max-w-sm w-full animate-in zoom-in duration-300">
+            <div className={`mb-4 p-4 rounded-full ${notification.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
+              {notification.type === "success" ? <CheckCircle size={48} className="text-green-500" /> : <AlertTriangle size={48} className="text-red-500" />}
+            </div>
+            <p className="text-xl font-bold text-center text-[--color-text] mb-6 uppercase tracking-tight">{escapeHtml(notification.message)}</p>
+            <button onClick={() => setNotification(null)} className="auth-btn !mt-0 !py-2 !px-8">Zatvori</button>
+          </div>
+        </div>
+      )}
+
+      {/* 🔎 Pretraga */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4 auth-card !max-w-none">
+        <h1 className="text-3xl font-bold text-[--color-primary] uppercase tracking-widest">
+          {userRole === "EDUKATOR" ? "Moji kursevi" : "Istražite kurseve"}
+        </h1>
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[--color-primary]" size={20} />
+          <input type="text" placeholder="Pretraži kurseve..." className="auth-input pl-10" onChange={(e) => setSearch(e.target.value)} />
+        </div>
+      </div>
+
+      {/* 📝 Lista kurseva */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {filtriraniKursevi.map((k) => (
+          <div key={k.id} className="auth-card !p-0 overflow-hidden flex flex-col hover:shadow-2xl transition-all group">
+            <div className="relative h-52 w-full cursor-pointer overflow-hidden" onClick={() => setSelectedCourse(k)}>
+              <Image src={k.slika || "/placeholder.jpg"} alt={k.naziv} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
+              <div className="absolute top-4 right-4 bg-[--color-secondary] text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{k.kategorija}</div>
+            </div>
+
+            <div className="p-6 flex flex-col flex-grow text-left">
+              <h2 className="text-xl font-bold text-[--color-text] mb-2 uppercase tracking-tighter line-clamp-1">{escapeHtml(k.naziv)}</h2>
+              <p className="text-gray-500 text-xs mb-4 line-clamp-2 italic cursor-pointer" onClick={() => setSelectedCourse(k)}>
+                {escapeHtml(k.opis)}
+              </p>
+
+              <div className="flex items-center gap-2 mb-6">
+                <User size={14} className="text-[--color-primary]" />
+                <span className="text-xs font-bold text-[--color-primary]">{k.edukatorIme} {k.edukatorPrezime}</span>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-[--color-accent] pt-4 mt-auto">
+                <span className="text-xl font-black text-[--color-primary]">{k.cena} €</span>
+
+                {userRole === "KLIJENT" && (
+                  <button onClick={() => handleAddToCart(k)} className="auth-btn !w-auto !py-2 !px-4 !mt-0 text-xs">
+                    <ShoppingBasket size={18} /> Kupi
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 🛒 Checkout dugme fiksirano na dnu */}
+      {cart.length > 0 && (
+        <div className="fixed bottom-4 right-4 md:right-10 bg-white shadow-xl p-4 rounded-3xl flex items-center gap-4 z-[1000]">
+          <span className="font-bold text-lg">Ukupno: {cart.reduce((sum, i) => sum + Number(i.cena), 0)} €</span>
+          <button
+            onClick={handleCheckout}
+            disabled={checkoutLoading}
+            className="auth-btn !px-6 !py-2 flex items-center gap-2"
+          >
+            {checkoutLoading ? <Loader2 className="animate-spin" size={20} /> : "POTVRDI I PLATI"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
