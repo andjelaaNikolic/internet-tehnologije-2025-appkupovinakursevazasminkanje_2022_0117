@@ -8,6 +8,13 @@ import { createKurs } from "@/lib/kurseviClient";
 import Image from "next/image";
 import { X, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
+interface Lekcija {
+  naziv: string;
+  opis: string;
+  video: string;
+  trajanje: string; // čuvamo kao string u inputu
+}
+
 function DodajKursSadrzaj() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -16,18 +23,18 @@ function DodajKursSadrzaj() {
   const [kursData, setKursData] = useState({
     naziv: "",
     opis: "",
-    cena: "",        // držimo string u inputu, konvertujemo na slanje
+    cena: "",
     kategorija: "",
     slika: "",
   });
 
-  const [lekcije, setLekcije] = useState<any[]>([]);
+  const [lekcije, setLekcije] = useState<Lekcija[]>([]);
 
-  const [trenutnaLekcija, setTrenutnaLekcija] = useState({
+  const [trenutnaLekcija, setTrenutnaLekcija] = useState<Lekcija>({
     naziv: "",
     opis: "",
     video: "",
-    trajanje: "",   // držimo string u inputu, konvertujemo na slanje
+    trajanje: "",
   });
 
   // Dodavanje lekcije u listu
@@ -51,28 +58,33 @@ function DodajKursSadrzaj() {
       return setNotification({ message: "Popunite sva polja za kurs!", type: "error" });
     }
     if (!kursData.slika) return setNotification({ message: "Otpremite naslovnu sliku!", type: "error" });
-    if (lekcije.length === 0) return setNotification({ message: "Dodajte bar jednu lekciju u listu!", type: "error" });
+    if (lekcije.length === 0) return setNotification({ message: "Dodajte bar jednu lekciju!", type: "error" });
 
-    // Konverzija tipova i priprema lekcija
-    const lekcijeZaSlanje = lekcije.map((l) => ({
-      naziv: l.naziv.trim(),
-      opis: l.opis.trim(),
-      trajanje: Number(l.trajanje).toString(), // backend očekuje string
-      video: l.video,
-    }));
-
-    setLoading(true);
     try {
+      // Konverzija lekcija
+      const lekcijeZaSlanje = lekcije.map((l, idx) => {
+        if (!l.naziv.trim() || !l.opis.trim() || !l.trajanje || !l.video) {
+          throw new Error(`Lekcija ${idx + 1} nije validna`);
+        }
+        return {
+          naziv: l.naziv.trim(),
+          opis: l.opis.trim(),
+          trajanje: Number(l.trajanje).toString(),
+          video: l.video,
+        };
+      });
+
       // Debug payload
-      console.log({
+      console.log("Saljem payload:", {
         ...kursData,
         cena: Number(kursData.cena).toString(),
         lekcije: lekcijeZaSlanje,
       });
 
+      setLoading(true);
       const rezultat = await createKurs({
         ...kursData,
-        cena: Number(kursData.cena).toString(), // backend očekuje string
+        cena: Number(kursData.cena).toString(),
         lekcije: lekcijeZaSlanje,
       });
 
@@ -83,7 +95,7 @@ function DodajKursSadrzaj() {
         setNotification({ message: rezultat.error || "Došlo je do greške.", type: "error" });
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Greška prilikom slanja kursa:", err);
       setNotification({ message: err.message || "Problem sa serverom. Pokušajte opet.", type: "error" });
     } finally {
       setLoading(false);
@@ -104,26 +116,27 @@ function DodajKursSadrzaj() {
         </div>
       )}
 
-      <div className="auth-card" style={{ maxWidth: '850px', margin: '40px auto', display: 'block' }}>
+      <div className="auth-card" style={{ maxWidth: '850px', margin: '40px auto' }}>
         <h1 className="text-2xl font-bold mb-6 text-[--color-primary] border-b border-[--color-accent] pb-2 text-center uppercase tracking-widest">
           Novi kurs
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Kurs polja */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
             <div className="space-y-4">
               <div>
                 <label className="contact-label">Naziv kursa</label>
-                <input required className="auth-input" value={kursData.naziv} onChange={(e) => setKursData(p => ({ ...p, naziv: e.target.value }))} />
+                <input className="auth-input" value={kursData.naziv} onChange={e => setKursData(p => ({ ...p, naziv: e.target.value }))} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="contact-label">Cena (€)</label>
-                  <input required type="number" min="0" step="0.01" className="auth-input" value={kursData.cena} onChange={(e) => setKursData(p => ({ ...p, cena: e.target.value }))} />
+                  <input type="number" min="0" step="0.01" className="auth-input" value={kursData.cena} onChange={e => setKursData(p => ({ ...p, cena: e.target.value }))} />
                 </div>
                 <div>
                   <label className="contact-label">Kategorija</label>
-                  <input required className="auth-input" value={kursData.kategorija} onChange={(e) => setKursData(p => ({ ...p, kategorija: e.target.value }))} />
+                  <input className="auth-input" value={kursData.kategorija} onChange={e => setKursData(p => ({ ...p, kategorija: e.target.value }))} />
                 </div>
               </div>
             </div>
@@ -142,18 +155,19 @@ function DodajKursSadrzaj() {
 
           <div className="text-left">
             <label className="contact-label">Glavni opis kursa</label>
-            <textarea required className="auth-input min-h-[80px]" value={kursData.opis} onChange={(e) => setKursData(p => ({ ...p, opis: e.target.value }))} />
+            <textarea className="auth-input min-h-[80px]" value={kursData.opis} onChange={e => setKursData(p => ({ ...p, opis: e.target.value }))} />
           </div>
 
           <hr className="border-[--color-accent] opacity-30" />
 
+          {/* Dodavanje lekcija */}
           <div className="p-5 rounded-3xl border-2 border-dashed border-[--color-secondary] space-y-4 text-left bg-white/30">
             <h2 className="text-lg font-bold text-[--color-primary] text-center italic underline">Dodaj video lekciju</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input className="auth-input" placeholder="Naziv lekcije *" value={trenutnaLekcija.naziv} onChange={(e) => setTrenutnaLekcija(p => ({ ...p, naziv: e.target.value }))} />
-              <input className="auth-input" type="number" min="1" placeholder="Trajanje (sekunde) *" value={trenutnaLekcija.trajanje} onChange={(e) => setTrenutnaLekcija(p => ({ ...p, trajanje: e.target.value }))} />
+              <input className="auth-input" placeholder="Naziv lekcije *" value={trenutnaLekcija.naziv} onChange={e => setTrenutnaLekcija(p => ({ ...p, naziv: e.target.value }))} />
+              <input className="auth-input" type="number" min="1" placeholder="Trajanje (sekunde) *" value={trenutnaLekcija.trajanje} onChange={e => setTrenutnaLekcija(p => ({ ...p, trajanje: e.target.value }))} />
             </div>
-            <textarea className="auth-input min-h-[60px]" placeholder="Opis lekcije *" value={trenutnaLekcija.opis} onChange={(e) => setTrenutnaLekcija(p => ({ ...p, opis: e.target.value }))} />
+            <textarea className="auth-input min-h-[60px]" placeholder="Opis lekcije *" value={trenutnaLekcija.opis} onChange={e => setTrenutnaLekcija(p => ({ ...p, opis: e.target.value }))} />
             {!trenutnaLekcija.video ? (
               <VideoUpload label="Otpremi video materijal *" onUploadSuccess={(url) => setTrenutnaLekcija(p => ({ ...p, video: url }))} />
             ) : (
@@ -162,6 +176,7 @@ function DodajKursSadrzaj() {
             <button type="button" onClick={handleDodajLekcijuUListu} className="auth-btn !py-2 !mt-0 bg-[--color-secondary] hover:bg-[--color-primary]">+ Dodaj lekciju u listu</button>
           </div>
 
+          {/* Lista lekcija */}
           {lekcije.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-bold uppercase text-[--color-primary] ml-2">Lekcije spremne za slanje ({lekcije.length}):</p>
