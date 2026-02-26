@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { generateCsrfToken, verifyCsrfToken } from '@/lib/csrf';
 import { dodajKorisnikaAction } from "@/app/actions/korisnik";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
@@ -15,14 +14,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  *     tags: [Korisnici]
  *     security:               
  *       - BearerAuth: []
- *       - CSRFToken: []
- *     parameters:
- *       - in: header
- *         name: x-csrf-token
- *         schema:
- *           type: string
- *         required: true
- *         description: CSRF zaštita - unesite vrednost CSRF tokena
  *     requestBody:
  *       required: true
  *       content:
@@ -57,15 +48,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  *     responses:
  *       200:
  *         description: Uspešno dodat korisnik.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
  *       401:                     
  *         description: Niste ulogovani (Nedostaje token).
  *       403:                     
@@ -75,13 +57,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  */
 export const POST = async function POST(req: Request) {
   try {
-    // Provera CSRF tokena
-    const csrfToken = req.headers.get("x-csrf-token");
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json({ success: false, error: "Nevažeći CSRF token." }, { status: 403 });
-    }
-
-    // Provera JWT
+    // 🔑 Provera JWT
     let token: string | undefined;
     const authHeader = req.headers.get("authorization");
     if (authHeader?.startsWith("Bearer ")) {
