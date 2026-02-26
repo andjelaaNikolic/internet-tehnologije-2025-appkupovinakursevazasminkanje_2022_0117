@@ -1,24 +1,16 @@
 // src/app/api/kursevi/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/db/index";
-import { kurs, korisnik, videoLekcija } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import jwt from "jsonwebtoken";
+import { kurs, videoLekcija } from "@/db/schema";
 import { cookies, headers } from "next/headers";
-import { verifyCsrfToken } from "@/lib/csrf";
+import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
 
 export const POST = async function POST(req: Request) {
   try {
-    // 🔑 CSRF provera
-    const headersList = await headers();
-    const csrfToken = headersList.get("x-csrf-token");
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json({ success: false, error: "Nevažeći CSRF token." }, { status: 403 });
-    }
-
     // 🔑 JWT autentifikacija
+    const headersList = await headers();
     let token: string | undefined;
     const authHeader = headersList.get("authorization");
     if (authHeader?.startsWith("Bearer ")) token = authHeader.substring(7);

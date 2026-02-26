@@ -3,19 +3,9 @@ import bcrypt from "bcryptjs";
 import { db } from "@/db";
 import { korisnik } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyCsrfToken } from "@/lib/csrf";
 
 export const POST = async function POST(req: Request) {
   try {
-    // 🔐 CSRF provera
-    const csrfToken = req.headers.get("x-csrf-token");
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json(
-        { success: false, error: "Nevažeći CSRF token." },
-        { status: 403 }
-      );
-    }
-
     const { token, novaLozinka } = await req.json();
 
     if (!token || !novaLozinka) {

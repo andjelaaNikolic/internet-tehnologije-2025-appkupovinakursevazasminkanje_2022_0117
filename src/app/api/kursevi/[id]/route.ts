@@ -4,7 +4,6 @@ import { kurs, videoLekcija, kupljeniKursevi, napredak } from '@/db/schema';
 import { eq, inArray, asc, and } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import { cookies, headers } from 'next/headers';
-import { verifyCsrfToken } from '@/lib/csrf';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super_tajni_string_123';
 
@@ -98,11 +97,6 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const csrfToken = request.headers.get('x-csrf-token');
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json({ success: false, error: 'Nevažeći CSRF token' }, { status: 403 });
-    }
-
     const { id: kursId } = await params;
     const body = await request.json();
     const { naziv, opis, cena, kategorija, slika, lekcije } = body;
@@ -163,11 +157,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const csrfToken = request.headers.get('x-csrf-token');
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json({ success: false, error: 'Nevažeći CSRF token' }, { status: 403 });
-    }
-
     const { id: kursId } = await params;
     const auth = await getAuth();
     if (!auth) return NextResponse.json({ success: false, error: 'Niste ulogovani' }, { status: 401 });

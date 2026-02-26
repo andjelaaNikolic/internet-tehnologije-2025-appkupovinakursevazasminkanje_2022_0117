@@ -4,7 +4,6 @@ import { kupljeniKursevi, kurs, korisnik } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
-import { verifyCsrfToken } from "@/lib/csrf";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
 
@@ -29,15 +28,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  */
 export const GET = async function GET() {
   try {
-    // 🔐 CSRF provera (opciono za GET)
-    const csrfToken = (await headers()).get("x-csrf-token");
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json(
-        { success: false, error: "Nevažeći CSRF token." },
-        { status: 403 }
-      );
-    }
-
     // 🔑 Preuzimanje JWT tokena iz header-a ili kolačića
     const headersList = await headers();
     let token = headersList.get("authorization")?.startsWith("Bearer ")

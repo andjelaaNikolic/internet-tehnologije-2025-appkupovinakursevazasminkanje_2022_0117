@@ -4,21 +4,11 @@ import jwt from "jsonwebtoken";
 import { db } from "@/db";
 import { korisnik } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyCsrfToken } from "@/lib/csrf";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
 
 export async function POST(req: Request) {
   try {
-    // 🔑 CSRF provera (SAMO token, bez CSRF_SECRET)
-    const csrfToken = req.headers.get("x-csrf-token");
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json(
-        { success: false, error: "Nevalidan CSRF token." },
-        { status: 403 }
-      );
-    }
-
     const body = await req.json();
 
     const email = (body.email || body.korisnickoIme)?.toLowerCase().trim();
@@ -31,7 +21,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔑 Provera korisnika
+    // 🔑 Provera korisnika u bazi
     const result = await db
       .select()
       .from(korisnik)
@@ -62,6 +52,7 @@ export async function POST(req: Request) {
       { expiresIn: "7d" }
     );
 
+    // Ukloni lozinku iz odgovora
     const { lozinka: _, ...userWithoutPassword } = user;
 
     const response = NextResponse.json({
@@ -69,13 +60,13 @@ export async function POST(req: Request) {
       user: userWithoutPassword,
     });
 
-    // 🔐 HTTP-only cookie
+    // 🔐 Postavljanje HTTP-only cookie za autentifikaciju
     response.cookies.set("auth", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: 60 * 60 * 24 * 7, // 7 dana
     });
 
     return response;

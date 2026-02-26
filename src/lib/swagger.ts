@@ -17,12 +17,7 @@ export const getApiDocs = async () => {
             scheme: 'bearer',
             bearerFormat: 'JWT',
           },
-          CSRFToken: {
-            type: 'apiKey',
-            in: 'header',
-            name: 'x-csrf-token',
-            description: 'CSRF zaštita token - obavezan za POST, PUT, PATCH, DELETE zahteve',
-          },
+          
         },
       },
     },

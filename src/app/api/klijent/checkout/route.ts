@@ -5,23 +5,13 @@ import jwt from "jsonwebtoken";
 import { db } from "@/db";
 import { kurs } from "@/db/schema";
 import { inArray } from "drizzle-orm";
-import { verifyCsrfToken } from "@/lib/csrf";
 
 const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
 
 export const POST = async function POST(req: Request) {
   try {
-    // 🔐 CSRF provera
-    const headersList = await headers();
-    const csrfToken = headersList.get("x-csrf-token");
-    if (!csrfToken || !verifyCsrfToken(csrfToken)) {
-      return NextResponse.json(
-        { success: false, error: "Nevažeći CSRF token." },
-        { status: 403 }
-      );
-    }
-
     // 🔑 JWT autentifikacija
+    const headersList = await headers();
     let token: string | undefined;
     const authHeader = headersList.get("authorization");
     if (authHeader?.startsWith("Bearer ")) token = authHeader.substring(7);
