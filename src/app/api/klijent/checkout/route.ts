@@ -107,50 +107,81 @@ import { db } from "@/db";
 import { kurs } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 
-const JWT_SECRET = process.env.JWT_SECRET || "super_tajni_string_123";
+const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
 
 export const POST = async function POST(req: Request) {
   try {
-    // 🔑 JWT iz cookie
+    // 🔑 JWT autentifikacija
     let token: string | undefined;
-    const authCookie = (await cookies()).get("auth")?.value;
-    if (authCookie) token = authCookie;
 
-    if (!token) {
-      return NextResponse.json({ success: false, error: "Niste ulogovani." }, { status: 401 });
+    // 1️⃣ prvo pokušaj iz Authorization header-a
+    const headersList = await headers(); // ⚠️ await obavezno
+    const authHeader = headersList.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
     }
 
-    // 🔐 Dekodiranje JWT
+    // 2️⃣ ako nema, pokušaj iz cookie
+    if (!token) {
+      const allCookies = await cookies(); // ⚠️ await obavezno
+      token = allCookies.get("auth")?.value;
+    }
+
+    // 3️⃣ ako i dalje nema tokena
+    if (!token) {
+      return NextResponse.json(
+        { success: false, error: "Niste ulogovani." },
+        { status: 401 }
+      );
+    }
+
+    // 🔹 dekodiranje JWT
     let korisnikId: string;
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { sub: string };
       korisnikId = decoded.sub;
     } catch {
-      return NextResponse.json({ success: false, error: "Nevažeća sesija." }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Nevažeća sesija." },
+        { status: 401 }
+      );
     }
 
-    // 📦 Podaci iz zahteva
+    // 🔹 podaci iz requesta
     const { items } = await req.json();
     if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ success: false, error: "Korpa je prazna." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Korpa je prazna." },
+        { status: 400 }
+      );
     }
 
-    // 🔹 Dohvatanje kurseva iz baze
+    // 🔹 dohvat kurseva iz baze
     const ids = items.map((i: any) => i.id.toString());
-    const kurseviIzBaze = await db.select().from(kurs).where(inArray(kurs.id, ids));
+    const kurseviIzBaze = await db
+      .select()
+      .from(kurs)
+      .where(inArray(kurs.id, ids));
 
     if (!kurseviIzBaze.length) {
-      return NextResponse.json({ success: false, error: "Kursevi nisu pronađeni u bazi." }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Kursevi nisu pronađeni u bazi." },
+        { status: 400 }
+      );
     }
 
     // 🔹 Stripe konfiguracija
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) {
-      return NextResponse.json({ success: false, error: "Greška u konfiguraciji servera." }, { status: 500 });
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) {
+      return NextResponse.json(
+        { success: false, error: "Greška u konfiguraciji servera." },
+        { status: 500 }
+      );
     }
-    const stripe = new Stripe(stripeKey, { apiVersion: "2026-01-28.clover" });
 
-    // 🔹 Line items za Stripe
+    const stripe = new Stripe(secretKey, { apiVersion: "2026-01-28.clover" });
+
+    // 🔹 Stripe line items
     const lineItems = kurseviIzBaze.map((k) => ({
       price_data: {
         currency: "eur",
@@ -160,7 +191,7 @@ export const POST = async function POST(req: Request) {
       quantity: 1,
     }));
 
-    // 🔹 Kreiranje checkout sesije
+    // 🔹 kreiranje Stripe checkout sesije
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: lineItems,
@@ -169,7 +200,7 @@ export const POST = async function POST(req: Request) {
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/stranice/korpa?canceled=true`,
       metadata: {
         korisnikId,
-        kursIds: JSON.stringify(kurseviIzBaze.map(k => k.id.toString())),
+        kursIds: JSON.stringify(kurseviIzBaze.map((k) => k.id.toString())),
       },
     });
 

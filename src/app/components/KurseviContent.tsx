@@ -374,32 +374,18 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useCart } from "../context/KorpaContext";
 import { escapeHtml } from "../utils/sanitize";
-import {
-  Search,
-  ShoppingBasket,
-  X,
-  CheckCircle,
-  AlertTriangle,
-  User,
-  Loader2,
-} from "lucide-react";
-import { useRouter } from "next/navigation";
-import { fetchKursevi, getKursSaLekcijama, obrisiKurs } from "@/lib/kurseviClient";
+import { Search, ShoppingBasket, X, CheckCircle, AlertTriangle, User, Loader2 } from "lucide-react";
+import { fetchKursevi } from "@/lib/kurseviClient";
 
 export default function KurseviContent() {
   const [kursevi, setKursevi] = useState<any[]>([]);
   const [userRole, setUserRole] = useState<"KLIJENT" | "EDUKATOR" | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedKursToDelete, setSelectedKursToDelete] = useState<any | null>(null);
-  const [loadingDetails, setLoadingDetails] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const { addToCart, cart } = useCart();
-  const router = useRouter();
 
   // 📦 Dodavanje u korpu
   const handleAddToCart = (k: any) => {
@@ -412,7 +398,7 @@ export default function KurseviContent() {
     }
   };
 
-  // 🛒 Checkout funkcija
+  // 🛒 Checkout
   const handleCheckout = async () => {
     if (cart.length === 0) {
       setNotification({ message: "Korpa je prazna.", type: "error" });
@@ -422,15 +408,16 @@ export default function KurseviContent() {
     setCheckoutLoading(true);
 
     try {
-      const res = await fetch("/api/klijent/checkout", {
+      const res = await fetch("https://iteh-sminkanje-app.onrender.com/api/klijent/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // ⚠️ šalje cookie JWT-a
         body: JSON.stringify({ items: cart }),
       });
 
       const data = await res.json();
 
-      if (data.success && data.url) {
+      if (data.url) {
         window.location.href = data.url;
       } else {
         setNotification({ message: data.error || "Greška prilikom plaćanja.", type: "error" });
@@ -452,7 +439,6 @@ export default function KurseviContent() {
         if (mounted) {
           setKursevi(data.kursevi || []);
           setUserRole(data.userRole || null);
-          setUserId(data.userId || null);
         }
       } catch (err: any) {
         setNotification({ message: err.message || "Greška pri učitavanju kurseva.", type: "error" });
@@ -462,40 +448,6 @@ export default function KurseviContent() {
     })();
     return () => { mounted = false; };
   }, []);
-
-  // ⚠️ Brisanje kursa
-  const handleReviewDelete = async (id: string) => {
-    setLoadingDetails(true);
-    try {
-      const detalji = await getKursSaLekcijama(id);
-      setSelectedKursToDelete(detalji);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      setNotification({ message: "Greška pri učitavanju detalja.", type: "error" });
-    } finally {
-      setLoadingDetails(false);
-    }
-  };
-
-  const izvrsiBrisanje = async () => {
-    if (!selectedKursToDelete) return;
-    setIsDeleting(true);
-    try {
-      const res = await obrisiKurs(selectedKursToDelete.id);
-      if (res.success) {
-        setNotification({ message: "Kurs je uspešno obrisan!", type: "success" });
-        setKursevi(prev => prev.filter(k => k.id !== selectedKursToDelete.id));
-        setSelectedKursToDelete(null);
-      } else {
-        setNotification({ message: res.error || "Greška pri brisanju.", type: "error" });
-      }
-    } catch {
-      setNotification({ message: "Greška na serveru.", type: "error" });
-    } finally {
-      setIsDeleting(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
 
   if (loading) return <div className="auth-card text-center py-20">Učitavanje kurseva...</div>;
 
@@ -541,27 +493,17 @@ export default function KurseviContent() {
 
             <div className="p-6 flex flex-col flex-grow text-left">
               <h2 className="text-xl font-bold text-[--color-text] mb-2 uppercase tracking-tighter line-clamp-1">{escapeHtml(k.naziv)}</h2>
-              <p className="text-gray-500 text-xs mb-4 line-clamp-2 italic cursor-pointer">
-                {escapeHtml(k.opis)}
-              </p>
-
+              <p className="text-gray-500 text-xs mb-4 line-clamp-2 italic cursor-pointer">{escapeHtml(k.opis)}</p>
               <div className="flex items-center gap-2 mb-6">
                 <User size={14} className="text-[--color-primary]" />
                 <span className="text-xs font-bold text-[--color-primary]">{k.edukatorIme} {k.edukatorPrezime}</span>
               </div>
-
               <div className="flex items-center justify-between border-t border-[--color-accent] pt-4 mt-auto">
                 <span className="text-xl font-black text-[--color-primary]">{k.cena} €</span>
 
                 {userRole === "KLIJENT" && (
                   <button onClick={() => handleAddToCart(k)} className="auth-btn !w-auto !py-2 !px-4 !mt-0 text-xs">
                     <ShoppingBasket size={18} /> Kupi
-                  </button>
-                )}
-
-                {userRole === "EDUKATOR" && (
-                  <button onClick={() => handleReviewDelete(k.id)} className="auth-btn !w-auto !py-2 !px-4 !mt-0 text-xs">
-                    <X size={18} /> Obriši
                   </button>
                 )}
               </div>
@@ -581,24 +523,6 @@ export default function KurseviContent() {
           >
             {checkoutLoading ? <Loader2 className="animate-spin" size={20} /> : "POTVRDI I PLATI"}
           </button>
-        </div>
-      )}
-
-      {/* 🧹 Modal za potvrdu brisanja */}
-      {selectedKursToDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-[5000] p-4 bg-black/40 backdrop-blur-[2px]">
-          <div className="auth-card flex flex-col items-center max-w-sm w-full animate-in zoom-in duration-300">
-            <p className="text-xl font-bold text-center text-[--color-text] mb-6">
-              Da li ste sigurni da želite obrisati kurs: <br />
-              <span className="text-[--color-primary]">{selectedKursToDelete.naziv}</span>?
-            </p>
-            <div className="flex gap-4">
-              <button onClick={() => setSelectedKursToDelete(null)} className="auth-btn !px-6 !py-2">Odustani</button>
-              <button onClick={izvrsiBrisanje} disabled={isDeleting} className="auth-btn !px-6 !py-2 bg-red-500 text-white">
-                {isDeleting ? <Loader2 className="animate-spin" size={20} /> : "Obriši"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
