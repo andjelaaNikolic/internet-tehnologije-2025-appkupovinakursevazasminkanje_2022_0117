@@ -74,3 +74,18 @@ export const POST = async function POST(req: Request) {
     );
   }
 };
+export const GET = async function GET() {
+  try {
+    const sviKursevi = await db.select().from(kurs);
+
+    return NextResponse.json({
+      success: true,
+      data: sviKursevi,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: "Greška pri dobavljanju kurseva." },
+      { status: 500 }
+    );
+  }
+};
