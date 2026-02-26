@@ -43,11 +43,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Generate Prisma Client
-        run: npx prisma generate
-
-      - name: Run Prisma Migrations
-        run: npx prisma migrate deploy
+      # 🔥 DRIZZLE MIGRATIONS
+      - name: Run Drizzle migrations
+        run: npx drizzle-kit push
 
       - name: Run tests
         run: npm test
