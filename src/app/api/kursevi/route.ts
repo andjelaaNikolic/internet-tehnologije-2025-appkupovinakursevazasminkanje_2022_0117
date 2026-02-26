@@ -107,10 +107,12 @@ export const POST = async function POST(req: Request) {
     if (authHeader?.startsWith("Bearer ")) token = authHeader.substring(7);
     if (!token) token = (await cookies()).get("auth")?.value;
     if (!token) {
-      return NextResponse.json({ success: false, error: "Niste ulogovani." }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Niste ulogovani." },
+        { status: 401 }
+      );
     }
 
-    // 🔑 Dekodiranje JWT
     let edukatorId: string;
     let uloga: string;
     try {
@@ -119,13 +121,18 @@ export const POST = async function POST(req: Request) {
       uloga = decoded.uloga;
     } catch (err) {
       console.error("JWT error:", err);
-      return NextResponse.json({ success: false, error: "Sesija nevažeća ili istekla." }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Sesija nevažeća ili istekla." },
+        { status: 401 }
+      );
     }
 
-    // 🔑 Provera role
     if (uloga !== "EDUKATOR") {
       return NextResponse.json(
-        { success: false, error: "Pristup zabranjen. Samo edukatori mogu kreirati kurseve." },
+        {
+          success: false,
+          error: "Pristup zabranjen. Samo edukatori mogu kreirati kurseve.",
+        },
         { status: 403 }
       );
     }
@@ -149,26 +156,25 @@ export const POST = async function POST(req: Request) {
       );
     }
 
-    console.log("Payload za kurs:", { naziv, opis, cena, kategorija, slika, edukatorId, lekcije });
+    console.log("Payload za kurs:", { naziv, opis, cena, kategorija, slika, lekcije, edukatorId });
 
     // 🔑 Kreiranje kursa i lekcija u transakciji
     const noviKurs = await db.transaction(async (tx) => {
       const [kursInsert] = await tx.insert(kurs).values({
         naziv: naziv.trim(),
         opis: opis.trim(),
-        cena: cena.toString(),       // numeric → string
+        cena: Number(cena).toString(), // Drizzle numeric → string
         kategorija: kategorija.trim(),
         slika: slika.trim(),
-        edukator: edukatorId,       // tačno ime kolone iz schema
+        edukator: edukatorId, // TAČNO ime property-a iz pgTable
       }).returning();
 
-      // Lekcije → kursId i trajanje kao string
       const lekcijeZaBazu = lekcije.map((l: any, i: number) => ({
         naziv: l.naziv.trim(),
         opis: l.opis.trim(),
-        trajanje: l.trajanje.toString(), // numeric → string
+        trajanje: Number(l.trajanje).toString(), // numeric → string
         video: l.video.trim(),
-        kursId: kursInsert.id,           // tačno ime kolone
+        kursId: kursInsert.id, // TAČNO ime property-a iz pgTable
         poredak: i,
       }));
 
@@ -179,11 +185,29 @@ export const POST = async function POST(req: Request) {
       return kursInsert;
     });
 
-    return NextResponse.json({ success: true, message: "Kurs je uspešno kreiran.", data: noviKurs });
+    return NextResponse.json({
+      success: true,
+      message: "Kurs je uspešno kreiran.",
+      data: noviKurs,
+    });
   } catch (error: any) {
     console.error("API /kursevi POST error:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Greška pri čuvanju podataka." },
+      { status: 500 }
+    );
+  }
+};
+
+// Opcionalno možeš dodati GET handler za sve kurseve
+export const GET = async function GET() {
+  try {
+    const sviKursevi = await db.select().from(kurs);
+    return NextResponse.json({ success: true, data: sviKursevi });
+  } catch (error: any) {
+    console.error("API /kursevi GET error:", error);
+    return NextResponse.json(
+      { success: false, error: "Greška pri dobavljanju kurseva." },
       { status: 500 }
     );
   }
