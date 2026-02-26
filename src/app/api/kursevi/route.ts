@@ -110,16 +110,19 @@ export const POST = async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Niste ulogovani." }, { status: 401 });
     }
 
+    // 🔑 Dekodiranje JWT
     let edukatorId: string;
     let uloga: string;
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as { sub: string; uloga: string };
       edukatorId = decoded.sub;
       uloga = decoded.uloga;
-    } catch {
+    } catch (err) {
+      console.error("JWT error:", err);
       return NextResponse.json({ success: false, error: "Sesija nevažeća ili istekla." }, { status: 401 });
     }
 
+    // 🔑 Provera role
     if (uloga !== "EDUKATOR") {
       return NextResponse.json(
         { success: false, error: "Pristup zabranjen. Samo edukatori mogu kreirati kurseve." },
@@ -130,8 +133,20 @@ export const POST = async function POST(req: Request) {
     // 🔑 Podaci iz zahteva
     const { naziv, opis, cena, kategorija, slika, lekcije } = await req.json();
 
-    if (!naziv || !opis || !cena || !kategorija || !slika || !lekcije || lekcije.length === 0) {
-      return NextResponse.json({ success: false, error: "Sva polja su obavezna." }, { status: 400 });
+    if (
+      !naziv?.trim() ||
+      !opis?.trim() ||
+      !cena ||
+      !kategorija?.trim() ||
+      !slika?.trim() ||
+      !lekcije ||
+      !Array.isArray(lekcije) ||
+      lekcije.length === 0
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Sva polja su obavezna i lekcije ne smeju biti prazne." },
+        { status: 400 }
+      );
     }
 
     console.log("Payload za kurs:", { naziv, opis, cena, kategorija, slika, edukatorId, lekcije });
@@ -139,21 +154,21 @@ export const POST = async function POST(req: Request) {
     // 🔑 Kreiranje kursa i lekcija u transakciji
     const noviKurs = await db.transaction(async (tx) => {
       const [kursInsert] = await tx.insert(kurs).values({
-        naziv,
-        opis,
-        cena: Number(cena),  // numeric u bazi → Number
-        kategorija,
-        slika,
-        edukator_id: edukatorId, // tačno ime kolone
+        naziv: naziv.trim(),
+        opis: opis.trim(),
+        cena: cena.toString(),       // numeric → string
+        kategorija: kategorija.trim(),
+        slika: slika.trim(),
+        edukator: edukatorId,       // tačno ime kolone iz schema
       }).returning();
 
-      // Lekcije → koristiti tačno ime kolone kurs_id i konvertovati trajanje u Number
+      // Lekcije → kursId i trajanje kao string
       const lekcijeZaBazu = lekcije.map((l: any, i: number) => ({
         naziv: l.naziv.trim(),
         opis: l.opis.trim(),
-        trajanje: Number(l.trajanje),
-        video: l.video,
-        kurs_id: kursInsert.id, // tačno ime kolone
+        trajanje: l.trajanje.toString(), // numeric → string
+        video: l.video.trim(),
+        kursId: kursInsert.id,           // tačno ime kolone
         poredak: i,
       }));
 
@@ -168,7 +183,7 @@ export const POST = async function POST(req: Request) {
   } catch (error: any) {
     console.error("API /kursevi POST error:", error);
     return NextResponse.json(
-      { success: false, error: "Greška pri čuvanju podataka." },
+      { success: false, error: error.message || "Greška pri čuvanju podataka." },
       { status: 500 }
     );
   }
