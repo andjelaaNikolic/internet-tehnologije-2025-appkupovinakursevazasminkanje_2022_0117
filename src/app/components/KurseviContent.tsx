@@ -381,11 +381,7 @@ import {
   CheckCircle,
   AlertTriangle,
   User,
-  Edit,
-  Trash2,
   Loader2,
-  ArrowLeft,
-  Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchKursevi, getKursSaLekcijama, obrisiKurs } from "@/lib/kurseviClient";
@@ -396,10 +392,8 @@ export default function KurseviContent() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [selectedKursToDelete, setSelectedKursToDelete] = useState<any | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [loadingCourseDetails, setLoadingCourseDetails] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -430,15 +424,13 @@ export default function KurseviContent() {
     try {
       const res = await fetch("/api/klijent/checkout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: cart }),
       });
 
       const data = await res.json();
 
-      if (data.url) {
+      if (data.success && data.url) {
         window.location.href = data.url;
       } else {
         setNotification({ message: data.error || "Greška prilikom plaćanja.", type: "error" });
@@ -478,7 +470,7 @@ export default function KurseviContent() {
       const detalji = await getKursSaLekcijama(id);
       setSelectedKursToDelete(detalji);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err) {
+    } catch {
       setNotification({ message: "Greška pri učitavanju detalja.", type: "error" });
     } finally {
       setLoadingDetails(false);
@@ -542,14 +534,14 @@ export default function KurseviContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filtriraniKursevi.map((k) => (
           <div key={k.id} className="auth-card !p-0 overflow-hidden flex flex-col hover:shadow-2xl transition-all group">
-            <div className="relative h-52 w-full cursor-pointer overflow-hidden" onClick={() => setSelectedCourse(k)}>
+            <div className="relative h-52 w-full cursor-pointer overflow-hidden">
               <Image src={k.slika || "/placeholder.jpg"} alt={k.naziv} fill className="object-cover group-hover:scale-110 transition-transform duration-500" />
               <div className="absolute top-4 right-4 bg-[--color-secondary] text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">{k.kategorija}</div>
             </div>
 
             <div className="p-6 flex flex-col flex-grow text-left">
               <h2 className="text-xl font-bold text-[--color-text] mb-2 uppercase tracking-tighter line-clamp-1">{escapeHtml(k.naziv)}</h2>
-              <p className="text-gray-500 text-xs mb-4 line-clamp-2 italic cursor-pointer" onClick={() => setSelectedCourse(k)}>
+              <p className="text-gray-500 text-xs mb-4 line-clamp-2 italic cursor-pointer">
                 {escapeHtml(k.opis)}
               </p>
 
@@ -564,6 +556,12 @@ export default function KurseviContent() {
                 {userRole === "KLIJENT" && (
                   <button onClick={() => handleAddToCart(k)} className="auth-btn !w-auto !py-2 !px-4 !mt-0 text-xs">
                     <ShoppingBasket size={18} /> Kupi
+                  </button>
+                )}
+
+                {userRole === "EDUKATOR" && (
+                  <button onClick={() => handleReviewDelete(k.id)} className="auth-btn !w-auto !py-2 !px-4 !mt-0 text-xs">
+                    <X size={18} /> Obriši
                   </button>
                 )}
               </div>
@@ -583,6 +581,24 @@ export default function KurseviContent() {
           >
             {checkoutLoading ? <Loader2 className="animate-spin" size={20} /> : "POTVRDI I PLATI"}
           </button>
+        </div>
+      )}
+
+      {/* 🧹 Modal za potvrdu brisanja */}
+      {selectedKursToDelete && (
+        <div className="fixed inset-0 flex items-center justify-center z-[5000] p-4 bg-black/40 backdrop-blur-[2px]">
+          <div className="auth-card flex flex-col items-center max-w-sm w-full animate-in zoom-in duration-300">
+            <p className="text-xl font-bold text-center text-[--color-text] mb-6">
+              Da li ste sigurni da želite obrisati kurs: <br />
+              <span className="text-[--color-primary]">{selectedKursToDelete.naziv}</span>?
+            </p>
+            <div className="flex gap-4">
+              <button onClick={() => setSelectedKursToDelete(null)} className="auth-btn !px-6 !py-2">Odustani</button>
+              <button onClick={izvrsiBrisanje} disabled={isDeleting} className="auth-btn !px-6 !py-2 bg-red-500 text-white">
+                {isDeleting ? <Loader2 className="animate-spin" size={20} /> : "Obriši"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
