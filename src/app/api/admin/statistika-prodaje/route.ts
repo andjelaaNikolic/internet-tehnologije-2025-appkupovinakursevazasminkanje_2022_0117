@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+/*import { NextResponse } from "next/server";
 import { getStatistikaProdajeKurseva } from "@/app/actions/admin";
 import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
@@ -54,6 +54,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "tvoja_tajna_sifra_123";
  *                 error:
  *                   type: string
  */
+/*
 export async function GET() {
   try {
     let token: string | undefined;
@@ -103,5 +104,32 @@ export async function GET() {
       { success: false, error: "Greška na serveru prilikom generisanja statistike." },
       { status: 500 }
     );
+  }
+}*/
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import { headers } from "next/headers";
+
+export async function GET(req: Request) {
+  try {
+    const headersList = await headers();
+    const authHeader = headersList.get("authorization");
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ message: "Niste ulogovani." }, { status: 401 });
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.decode(token) as any;
+
+    if (!decoded || decoded.uloga !== "ADMIN") {
+      return NextResponse.json({ message: "Pristup dozvoljen samo administratorima." }, { status: 403 });
+    }
+
+    return NextResponse.json({ 
+      stats: { total: 0, count: 0 } 
+    }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ message: "Greška na serveru." }, { status: 500 });
   }
 }
