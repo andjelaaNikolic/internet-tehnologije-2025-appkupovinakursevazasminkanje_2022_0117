@@ -8,7 +8,6 @@ process.env.JWT_SECRET = "tvoja_tajna_sifra_123";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
-// Mock headers/cookies (NextRequest ih koristi interno)
 vi.mock("next/headers", () => ({
   headers: vi.fn(),
   cookies: vi.fn(),
