@@ -11,49 +11,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Checkout koda
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    # 2️⃣ Setup Node.js
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 20
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: 'npm'
 
-    # 3️⃣ Install dependencies and run tests
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run tests
-      run: npm test
+      - name: Run tests
+        run: npm test
 
-    # 4️⃣ Build Docker image
-    - name: Build Docker image
-      run: |
-        docker build \
-          --build-arg NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=${{ secrets.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME }} \
-          --build-arg NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=${{ secrets.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET }} \
-          --build-arg NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }} \
-          --build-arg NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }} \
-          -t my-app:${{ github.sha }} \
-          .
+      - name: Build project
+        run: npm run build
 
-    # 5️⃣ Login u Docker Hub
-    - name: Login to DockerHub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    # 6️⃣ Tag i Push
-    - name: Push Docker image
-      run: |
-        docker tag my-app:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/my-app:${{ github.sha }}
-        docker push ${{ secrets.DOCKER_USERNAME }}/my-app:${{ github.sha }}
-
-    # 7️⃣ Deploy na Render
-    - name: Deploy to Render
-      run: |
-        curl -X POST https://api.render.com/deploy/srv-d6eqg9q4d50c73furli0 \
-          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
+      - name: Deploy to Render
+        if: github.ref == 'refs/heads/main'
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
